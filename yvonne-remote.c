@@ -86,7 +86,7 @@ int main(int argc, char** argv)
     if (getcwd(buf, 250))
       printf("%s\n", buf);
 
-    exit(EXIT_SUCCESS);      
+//    exit(EXIT_SUCCESS);
 
     /* parse options */
     int option_index = 0, opt;
