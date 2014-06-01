@@ -39,7 +39,7 @@
 
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 
-#define LINE_BUFFER                 128
+#define LINE_BUFFER                 255
 #define TEXTMAX                     255
 
 #define SERIAL_PORT_MAXLENGHT       80
