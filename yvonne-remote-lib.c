@@ -234,3 +234,46 @@ int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
 
     return ERROR_NO;
 }
+
+/**
+ *  strstr_last
+ *  locate the last substring
+ *  @Param : where to find the substring
+ *  @Param : the substring to find
+ *  @Return : ptr to the last substring or NULL if not found
+ */
+char* strstr_last(const char* str1, const char* str2)
+{
+  char* strp;
+  char* strp2;  
+  int len1, len2;
+
+  len2 = strlen(str2);
+  if(len2==0)
+    return (char*)str1;
+
+  len1 = strlen(str1);
+  if(len1 - len2 <= 0)
+  {
+    if(strcmp(str1,str2)==0)
+        return (char*)str1;   
+    return 0;
+  }
+  
+  // get the first occurence if exist
+  strp2 = strstr(str1, str2);
+  if(!strp2)
+    return 0;
+    
+  strp = (char*)(str1 + len1 - len2);
+  while(strp != str1)
+  {
+    if(*strp == *str2)
+    {
+      if(strncmp(strp,str2,len2)==0)
+        return strp;
+    }
+    strp--;
+  }
+  return strp2;
+}

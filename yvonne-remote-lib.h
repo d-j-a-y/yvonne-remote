@@ -33,5 +33,7 @@ int OpenArduinoConnection (char* arduinoPort);
 
 int ExecuteCommandLine(char* srtCommandName, char* strCommandLine);
 
+char* strstr_last(const char* str1, const char* str2);
+
 #endif //__YVONNEREMOTELIB__
 
