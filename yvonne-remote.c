@@ -50,6 +50,7 @@
 //TODO dossier basse qualité Has option
 //TODO qualité basse qualité Has option
 //TODO option ffmpeg Has option
+//TODO test de presence d'un appareil photo
 
 void usage(void)
 {
@@ -61,7 +62,7 @@ void usage(void)
     "  -s, --scene=scenename      Name of the scene (defaut currentdir)\n" 
     "  -p, --port=serialport      Serial port the Arduino is connected to (defaut %s)\n"
     "  -g, --gap=integer          Gap of scene numbering for resumption (optional)\n"
-    "  -d  --delay=seconds        Additional Delay between shooting in seconds (default %d)\n"
+    "  -d  --delay=seconds        Delay between two shoot in seconds (default %d)\n"
     "  -b, --baud=rate            Baudrate (bps) of Arduino (default %d)\n"
     "\n"
     "Dependecies: gphoto2, ffmpeg, imagemagick\n"
@@ -170,19 +171,25 @@ int main(int argc, char** argv)
     }
 
     if(sceneIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
+    
+    mkdir("video",S_IFDIR|S_IRWXU|S_IRWXG);    
 
 	int charReceived;
 	int startSequence = 0;
   int videoIndex = 0;
 //TODO malloc?
 	char bufArduino[TEXTMAX];
-  int i;
   int Stop = 1;
-  int Video = 0;  
+  int Video = 0;
+  int Quit = 0;
   char commandLine[LINE_BUFFER];
+  
+  char* stopIndex = 0;
+  char* startIndex = 0;
 
   //! here start the (interesting) work
-  for (i=0 ; i < 10; i++) //TODO WHILE NOTDONE
+//  for (i=0 ; i < 1000 ; i++) //TODO WHILE NOTDONE
+  while (!Quit)
   {
     //Listen to the Arduino remote
     charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
@@ -195,21 +202,23 @@ int main(int argc, char** argv)
     {
         bufArduino[charReceived]='\0';
         if(!quiet) printf("String readed : %s CaracteresRecus : %d\n", bufArduino, charReceived);
-        if (strncmp(bufArduino, "STOP", charReceived-1) == 0)
-            //returnvalue = STOP_ACTION;
-            Stop = 1;
-        if (strncmp(bufArduino, "START", charReceived-1) == 0)
-            //returnvalue = START_ACTION;
-            Stop = 0;
-        if (strncmp(bufArduino, "VIDEO", charReceived-1) == 0)
-            Video = 1;
-            //returnvalue = VIDEO_ACTION;
-        if (strncmp(bufArduino, "SPEED1", charReceived-1) == 0)
-            ; //TODO
-            //returnvalue = SPEED1_ACTION;
+        
+        if (charReceived)
+        {
+          Video = (strstr(bufArduino, "VIDEO") ? 1 : 0);
+          Quit = (strstr(bufArduino, "QUIT") ? 1 : 0);          
 
-        // clean the buffer
-        memset(bufArduino, '\0', charReceived);   
+//TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);          
+          
+          stopIndex = strstr_last(bufArduino, "STOP");
+          startIndex = strstr_last(bufArduino, "START");
+          
+          if (startIndex || stopIndex)
+            Stop = (startIndex > stopIndex) ? 0 : 1;
+            
+          // clean the buffer
+          memset(bufArduino, '\0', charReceived);            
+        }  
     }
 
     //Execute some shell command
@@ -220,7 +229,7 @@ int main(int argc, char** argv)
       //resize the photo 
       //TODO change LOWQUALITY_DIRECTORY to command line parameter
       //INFO -vframes n or -frames:v to control the quantity of frames
-      sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 6 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -s %s %s-%d.mpg", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
+      sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 6 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLine ("video generation", commandLine) != ERROR_NO)
         ;//do something
 
@@ -229,6 +238,9 @@ int main(int argc, char** argv)
 
       Video = 0;
     }
+    
+    //Exit now!
+    if(Quit) continue;    
 
     // to command the shooting and resize the image
     if (!Stop)
