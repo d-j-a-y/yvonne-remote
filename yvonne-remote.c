@@ -66,14 +66,14 @@ void usage(void)
     "  -b, --baud=rate            Baudrate (bps) of Arduino (default %d)\n"
     "\n"
     "Dependecies: gphoto2, ffmpeg, imagemagick\n"
-    "\n", ARDUINO_DEFAULT_PORT, SHOOTING_DEFAULT_DELAY, ARDUINO_DEFAULT_BAUDRATE);
+    "\n", ARDUINO_DEFAULT_PORT, SHOOTING_DEFAULT_DELAY, ARDUINO_57600_BAUDRATE);
     exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char** argv)
 {
     // assign defautl value
-    int baudrate = ARDUINO_DEFAULT_BAUDRATE;
+    int baudrate = ARDUINO_57600_BAUDRATE;
     char quiet=0;
     int shootingDelay = SHOOTING_DEFAULT_DELAY;
     int sceneIndex = 0;
@@ -172,7 +172,8 @@ int main(int argc, char** argv)
 
     if(sceneIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
     
-    mkdir("video",S_IFDIR|S_IRWXU|S_IRWXG);    
+    mkdir("video",S_IFDIR|S_IRWXU|S_IRWXG);
+    mkdir("tmp",S_IFDIR|S_IRWXU|S_IRWXG);       
 
 	int charReceived;
 	int startSequence = 0;
@@ -183,9 +184,13 @@ int main(int argc, char** argv)
   int Video = 0;
   int Quit = 0;
   char commandLine[LINE_BUFFER];
+  char currentPhoto[TEXTMAX_PHOTO];
+  
+  int sceneLowQualityIndex = 0;
   
   char* stopIndex = 0;
   char* startIndex = 0;
+  
 
   //! here start the (interesting) work
 //  for (i=0 ; i < 1000 ; i++) //TODO WHILE NOTDONE
@@ -201,7 +206,7 @@ int main(int argc, char** argv)
     else
     {
         bufArduino[charReceived]='\0';
-        if(!quiet) printf("String readed : %s CaracteresRecus : %d\n", bufArduino, charReceived);
+        if(!quiet) printf("Arduino string readed : %s CaracteresRecus : %d\n", bufArduino, charReceived);
         
         if (charReceived)
         {
@@ -221,19 +226,26 @@ int main(int argc, char** argv)
         }  
     }
 
+    //Generate current photo name
+    sprintf(currentPhoto , "./%s-%05d.jpg", sceneName, sceneIndex);
+    if(!quiet) printf("current photo : %s \n", currentPhoto);
+    
     //Execute some shell command
-
+    
     //For video generation
     if (Video)
     {
       //resize the photo 
       //TODO change LOWQUALITY_DIRECTORY to command line parameter
       //INFO -vframes n or -frames:v to control the quantity of frames
-      sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 6 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
+      
+      //INFO 25 f/s because all images are duplicated N time
+      sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLine ("video generation", commandLine) != ERROR_NO)
-        ;//do something
 
-      startSequence = sceneIndex;
+          printf("ERROR during video generation cmd line : %s", commandLine);//TODO do something better
+
+      startSequence = sceneLowQualityIndex;
       videoIndex++;
 
       Video = 0;
@@ -245,16 +257,43 @@ int main(int argc, char** argv)
     // to command the shooting and resize the image
     if (!Stop)
     {
+    
+      
       //take the photo
       //TODO use direclty libgphoto2?
-      sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, sceneIndex);
+      //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, sceneIndex);
+      sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);     
       if (ExecuteCommandLine ("capture", commandLine) != ERROR_NO)
-        ;//do something    
+      
+          printf("ERROR during capture cmd line : %s", commandLine);//TODO do something better
 
+/*
       //resize the photo
       sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, LOWQUALITY_DIRECTORY, sceneName, sceneIndex);
       if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
-        ;//do something
+        ;//TODO do something          
+      
+*/      
+      //resize the photo
+      //CURRENTPHOTO - sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, "./tmp", sceneName, sceneIndex);
+      sprintf(commandLine, "mogrify -resize %s -path %s %s", LOWQUALITY_RESOLUTION, "./tmp", currentPhoto);      
+      if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
+      
+          printf("ERROR during resize cmd line : %s", commandLine);//TODO do something better
+        
+           
+      int repeatEachImage = 5;        
+      for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
+      {    
+//        printf("quoi");
+        
+        //duplicate the lowquality photo to slowdown the video rythm
+        //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, sceneIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+        sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+        
+        if (ExecuteCommandLine ("duplicate", commandLine) != ERROR_NO)
+            printf("ERROR during duplicate cmd line : %s", commandLine);//TODO do something better
+      }
 
       sceneIndex++;
     }

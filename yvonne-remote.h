@@ -41,6 +41,7 @@
 
 #define LINE_BUFFER                 255
 #define TEXTMAX                     255
+#define TEXTMAX_PHOTO               255
 
 #define SERIAL_PORT_MAXLENGHT       80
 #define SCENE_NAME_MAXLENGHT        20
@@ -52,7 +53,7 @@
 
 #define SHOOTING_DEFAULT_DELAY      5
 #define LOWQUALITY_DIRECTORY        "./bq640"
-#define ARDUINO_DEFAULT_BAUDRATE    57600
+#define ARDUINO_57600_BAUDRATE    57600
 #define ARDUINO_MEDA2560_ACM0       "/dev/ttyACM0"
 #define ARDUINO_DEFAULT_PORT        ARDUINO_MEDA2560_ACM0
 
