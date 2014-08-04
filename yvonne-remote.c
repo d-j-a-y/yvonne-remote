@@ -242,8 +242,9 @@ int main(int argc, char** argv)
       //INFO 25 f/s because all images are duplicated N time
       sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLine ("video generation", commandLine) != ERROR_NO)
-
+      {
           printf("ERROR during video generation cmd line : %s", commandLine);//TODO do something better
+      }
 
       startSequence = sceneLowQualityIndex;
       videoIndex++;
@@ -264,39 +265,52 @@ int main(int argc, char** argv)
       //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, sceneIndex);
       sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);     
       if (ExecuteCommandLine ("capture", commandLine) != ERROR_NO)
-      
+      {
           printf("ERROR during capture cmd line : %s", commandLine);//TODO do something better
-
-/*
-      //resize the photo
-      sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, LOWQUALITY_DIRECTORY, sceneName, sceneIndex);
-      if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
-        ;//TODO do something          
-      
-*/      
-      //resize the photo
-      //CURRENTPHOTO - sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, "./tmp", sceneName, sceneIndex);
-      sprintf(commandLine, "mogrify -resize %s -path %s %s", LOWQUALITY_RESOLUTION, "./tmp", currentPhoto);      
-      if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
-      
-          printf("ERROR during resize cmd line : %s", commandLine);//TODO do something better
-        
-           
-      int repeatEachImage = 5;        
-      for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
-      {    
-//        printf("quoi");
-        
-        //duplicate the lowquality photo to slowdown the video rythm
-        //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, sceneIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-        sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-        
-        if (ExecuteCommandLine ("duplicate", commandLine) != ERROR_NO)
-            printf("ERROR during duplicate cmd line : %s", commandLine);//TODO do something better
       }
 
-      sceneIndex++;
-    }
+      //test file creation
+      if (open(currentPhoto, O_RDONLY) == -1)
+      {
+          //don't do photo's modification, do not increase photo's sceneindex
+          printf("Photo %s shoot has failed.\n", currentPhoto);
+      }
+      else
+      {
+
+  /*
+        //resize the photo
+        sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, LOWQUALITY_DIRECTORY, sceneName, sceneIndex);
+        if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
+          ;//TODO do something          
+        
+  */      
+        //resize the photo
+        //CURRENTPHOTO - sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, "./tmp", sceneName, sceneIndex);
+        sprintf(commandLine, "mogrify -resize %s -path %s %s", LOWQUALITY_RESOLUTION, "./tmp", currentPhoto);      
+        if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
+        {
+            printf("ERROR during resize cmd line : %s", commandLine);//TODO do something better
+        }
+             
+        int repeatEachImage = 5;        
+        for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
+        {    
+  //        printf("quoi");
+          
+          //duplicate the lowquality photo to slowdown the video rythm
+          //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, sceneIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+          sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+          
+          if (ExecuteCommandLine ("duplicate", commandLine) != ERROR_NO)
+          {
+              printf("ERROR during duplicate cmd line : %s", commandLine);//TODO do something better
+          }
+        }
+
+        sceneIndex++;
+      }
+    }    
     else
     {
       if(!quiet) printf("Shooting paused\n");
