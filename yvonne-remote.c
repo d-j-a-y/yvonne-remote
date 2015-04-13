@@ -61,7 +61,8 @@ void usage(void)
     "  -h, --help                 Print this help message and quit\n"
     "  -s, --scene=scenename      Name of the scene (defaut currentdir)\n" 
     "  -p, --port=serialport      Serial port the Arduino is connected to (defaut %s)\n"
-    "  -g, --gap=integer          Gap of scene numbering for resumption (optional)\n"
+    "  -f, --fotogap=integer      Gap of scene (photo) numbering for resumption (optional)\n"
+    "  -v, --videogap=integer     Gap of video numbering for resumption (optional)\n"    
     "  -d  --delay=seconds        Delay between two shoot in seconds (default %d)\n"
     "  -b, --baud=rate            Baudrate (bps) of Arduino (default %d)\n"
     "\n"
@@ -76,7 +77,8 @@ int main(int argc, char** argv)
     int baudrate = ARDUINO_57600_BAUDRATE;
     char quiet=0;
     int shootingDelay = SHOOTING_DEFAULT_DELAY;
-    int sceneIndex = 0;
+    int photoIndex = 0;
+    int videoIndex = 0;    
     char arduinoDeviceName[SERIAL_PORT_MAXLENGHT];
     strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);
 
@@ -96,14 +98,15 @@ int main(int argc, char** argv)
         {"port",      required_argument, 0, 'p'},
         {"baud",      required_argument, 0, 'b'},
         {"scene",     required_argument, 0, 's'},
-        {"gap",       required_argument, 0, 'g'},
+        {"fotogap",   required_argument, 0, 'f'},
+        {"videogap",  required_argument, 0, 'v'},        
         {"delay",     required_argument, 0, 'd'},
         {"quiet",     no_argument,       0, 'q'},
         {NULL,        0,                 0,  0}
     };
 
     while(1) {
-        opt = getopt_long (argc, argv, "hqp:b:s:g:d:",
+        opt = getopt_long (argc, argv, "hqp:b:s:v:f:d:",
                            loptions, &option_index);
         if (opt==-1) break;
         switch (opt) {
@@ -134,9 +137,13 @@ int main(int argc, char** argv)
               exit(ERROR_GENERIC);
             }
             break;
-        case 'g':
-              sceneIndex = strtol(optarg,NULL,10);
-              if(!quiet) printf("Scene numbering start from %d\n",sceneIndex);
+        case 'f':
+              photoIndex = strtol(optarg,NULL,10);
+              if(!quiet) printf("Scene numbering start from %d\n",photoIndex);
+            break;
+        case 'v':
+              videoIndex = strtol(optarg,NULL,10);
+              if(!quiet) printf("Video numbering start from %d\n",videoIndex);
             break;
         case 's':
             if(strlen(optarg)+1 <= SCENE_NAME_MAXLENGHT)
@@ -170,14 +177,13 @@ int main(int argc, char** argv)
         exit(ERROR_GENERIC);
     }
 
-    if(sceneIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
+    if(photoIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
     
     mkdir("video",S_IFDIR|S_IRWXU|S_IRWXG);
     mkdir("tmp",S_IFDIR|S_IRWXU|S_IRWXG);       
 
 	int charReceived;
 	int startSequence = 0;
-  int videoIndex = 0;
 //TODO malloc?
 	char bufArduino[TEXTMAX];
   int Stop = 1;
@@ -227,7 +233,7 @@ int main(int argc, char** argv)
     }
 
     //Generate current photo name
-    sprintf(currentPhoto , "./%s-%05d.jpg", sceneName, sceneIndex);
+    sprintf(currentPhoto , "./%s-%05d.jpg", sceneName, photoIndex);
     if(!quiet) printf("current photo : %s \n", currentPhoto);
     
     //Execute some shell command
@@ -262,7 +268,7 @@ int main(int argc, char** argv)
       
       //take the photo
       //TODO use direclty libgphoto2?
-      //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, sceneIndex);
+      //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, photoIndex);
       sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);     
       if (ExecuteCommandLine ("capture", commandLine) != ERROR_NO)
       {
@@ -272,7 +278,7 @@ int main(int argc, char** argv)
       //test file creation
       if (open(currentPhoto, O_RDONLY) == -1)
       {
-          //don't do photo's modification, do not increase photo's sceneindex
+          //don't do photo's modification, do not increase photo's photoIndex
           printf("Photo %s shoot has failed.\n", currentPhoto);
       }
       else
@@ -280,26 +286,26 @@ int main(int argc, char** argv)
 
   /*
         //resize the photo
-        sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, LOWQUALITY_DIRECTORY, sceneName, sceneIndex);
+        sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, LOWQUALITY_DIRECTORY, sceneName, photoIndex);
         if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
           ;//TODO do something          
         
   */      
         //resize the photo
-        //CURRENTPHOTO - sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, "./tmp", sceneName, sceneIndex);
+        //CURRENTPHOTO - sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, "./tmp", sceneName, photoIndex);
         sprintf(commandLine, "mogrify -resize %s -path %s %s", LOWQUALITY_RESOLUTION, "./tmp", currentPhoto);      
         if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
         {
             printf("ERROR during resize cmd line : %s", commandLine);//TODO do something better
         }
-             
+             // TODO TODO TODO TODO TODO TODO TODO TODO 
         int repeatEachImage = 5;        
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
         {    
   //        printf("quoi");
           
           //duplicate the lowquality photo to slowdown the video rythm
-          //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, sceneIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+          //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, photoIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
           sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
           
           if (ExecuteCommandLine ("duplicate", commandLine) != ERROR_NO)
@@ -308,7 +314,7 @@ int main(int argc, char** argv)
           }
         }
 
-        sceneIndex++;
+        photoIndex++;
       }
     }    
     else
