@@ -10,7 +10,7 @@
  The circuit:
  --> Visual Output
  * video LED attached from pin 6 to 220ohm to ground 
- * start state LED attached from pin 8 to 220ohm to ground
+ * start/stop state LED attached from pin 8 to 220ohm to ground
  --> Command
  * quit pushbutton attached to pin 14 from +5V
  * 120ohm push down resistor attached to pin 14 from ground
