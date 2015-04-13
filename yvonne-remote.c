@@ -184,9 +184,10 @@ int main(int argc, char** argv)
 	int startSequence = 0;
 //TODO malloc?
 	char bufArduino[TEXTMAX];
-  int Stop = 1;
-  int Video = 0;
-  int Quit = 0;
+//TODO State Mask	
+  int StateStop = 1;
+  int StateVideo = 0;
+  int StateQuit = 0;
   char commandLine[LINE_BUFFER];
   char currentPhoto[TEXTMAX_PHOTO];
   
@@ -197,7 +198,7 @@ int main(int argc, char** argv)
   
 
   //! here start the (interesting) work
-  while (!Quit)
+  while (!StateQuit)
   {
     //Listen to the Arduino remote
     charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
@@ -213,8 +214,8 @@ int main(int argc, char** argv)
         
         if (charReceived)
         {
-          Video = (strstr(bufArduino, "VIDEO") ? 1 : 0);
-          Quit = (strstr(bufArduino, "QUIT") ? 1 : 0);          
+          StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
+          StateQuit = (strstr(bufArduino, "QUIT") ? 1 : 0);          
 
 //TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);          
           
@@ -222,7 +223,7 @@ int main(int argc, char** argv)
           startIndex = strstr_last(bufArduino, "START");
           
           if (startIndex || stopIndex)
-            Stop = (startIndex > stopIndex) ? 0 : 1;
+            StateStop = (startIndex > stopIndex) ? 0 : 1;
             
           // clean the buffer
           memset(bufArduino, '\0', charReceived);            
@@ -235,8 +236,8 @@ int main(int argc, char** argv)
     
     //Execute some shell command
     
-    //For video generation
-    if (Video)
+    //For Video generation
+    if (StateVideo)
     {
       //resize the photo 
       //TODO change LOWQUALITY_DIRECTORY to command line parameter
@@ -252,14 +253,14 @@ int main(int argc, char** argv)
       startSequence = sceneLowQualityIndex;
       videoIndex++;
 
-      Video = 0;
+      StateVideo = 0;
     }
     
     //Exit now!
-    if(Quit) continue;    
+    if(StateQuit) continue;    
 
     // to command the shooting and resize the image
-    if (!Stop)
+    if (!StateStop)
     {
       //take the photo
       //TODO use direclty libgphoto2?
