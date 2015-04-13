@@ -89,8 +89,6 @@ int main(int argc, char** argv)
     if (getcwd(buf, 250))
       printf("%s\n", buf);
 
-//    exit(EXIT_SUCCESS);
-
     /* parse options */
     int option_index = 0, opt;
     static struct option loptions[] = {
@@ -199,7 +197,6 @@ int main(int argc, char** argv)
   
 
   //! here start the (interesting) work
-//  for (i=0 ; i < 1000 ; i++) //TODO WHILE NOTDONE
   while (!Quit)
   {
     //Listen to the Arduino remote
@@ -264,8 +261,6 @@ int main(int argc, char** argv)
     // to command the shooting and resize the image
     if (!Stop)
     {
-    
-      
       //take the photo
       //TODO use direclty libgphoto2?
       //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, photoIndex);
@@ -301,9 +296,7 @@ int main(int argc, char** argv)
              // TODO TODO TODO TODO TODO TODO TODO TODO 
         int repeatEachImage = 5;        
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
-        {    
-  //        printf("quoi");
-          
+        {        
           //duplicate the lowquality photo to slowdown the video rythm
           //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, photoIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
           sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
