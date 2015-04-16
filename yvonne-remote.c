@@ -245,7 +245,7 @@ int main(int argc, char** argv)
       
       //INFO 25 f/s because all images are duplicated N time
       sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
-      if (ExecuteCommandLine ("video generation", commandLine) != ERROR_NO)
+      if (ExecuteCommandLineForked ("video generation", commandLine) != ERROR_NO)
       {
           printf("ERROR during video generation cmd line : %s", commandLine);//TODO do something better
       }
