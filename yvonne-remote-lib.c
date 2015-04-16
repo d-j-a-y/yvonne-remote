@@ -205,9 +205,10 @@ void CloseArduinoConnection (int fd, struct termios* oldtio)
 }
 
 /**
- *  ExecuteCommandLine
+ *  ExecuteCommandLine : Execute the command line
+ *  @Param : strCommandName, name of the Command line to execute inside a shell 
  *  @Param : strCommandLine, Command line to execute inside a shell
- *  @Return :
+ *  @Return : Error code
  */
 int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
 {
@@ -232,6 +233,45 @@ int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
     //close the pipe
     pclose(pipe);
 
+    return ERROR_NO;
+}
+
+/**
+ *  ExecuteCommandLineForked : Execute the command line in a child process and exit
+ *  @Param : strCommandName, name of the Command line to execute inside a shell  
+ *  @Param : strCommandLine, Command line to execute inside a shell
+ *  @Return : Error code
+ */
+int ExecuteCommandLineForked(char* strCommandName, char* strCommandLine)
+{
+    FILE *pipe;
+    pid_t process_id;
+
+    process_id = fork();
+    //if forked with success return, if fail or child : follow
+    if(process_id && process_id != -1) return ERROR_NO;
+
+    //get a pipe for the command line
+    pipe = popen(strCommandLine, "r");
+    if(pipe == NULL)
+    {
+        perror("pipe :");
+        return ERROR_GENERIC;
+    }
+
+    char outputLine[LINE_BUFFER];
+    int linenr=1;
+    //read the command line output  from the pipe line by line
+    while (fgets(outputLine, LINE_BUFFER, pipe) != NULL)
+    {
+        printf("%s n°%d : %s",strCommandName, linenr, outputLine);
+        ++linenr;
+    }
+
+    //close the pipe
+    pclose(pipe);
+
+    if(process_id == 0)     exit(EXIT_SUCCESS);
     return ERROR_NO;
 }
 

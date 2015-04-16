@@ -32,6 +32,7 @@ void CloseArduinoConnection (int fd, struct termios* oldtio);
 int OpenArduinoConnection (char* arduinoPort);
 
 int ExecuteCommandLine(char* srtCommandName, char* strCommandLine);
+int ExecuteCommandLineForked(char* srtCommandName, char* strCommandLine);
 
 char* strstr_last(const char* str1, const char* str2);
 
