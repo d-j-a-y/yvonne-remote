@@ -232,7 +232,7 @@ int main(int argc, char** argv)
 
     //Generate current photo name
     sprintf(currentPhoto , "./%s-%05d.jpg", sceneName, photoIndex);
-    if(!quiet) printf("current photo : %s \n", currentPhoto);
+    printf("current photo : %s \n", currentPhoto);
     
     //Execute some shell command
     
