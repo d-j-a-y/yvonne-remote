@@ -78,7 +78,7 @@ int main(int argc, char** argv)
     char quiet=0;
     int shootingDelay = SHOOTING_DEFAULT_DELAY;
     int photoIndex = 0;
-    int videoIndex = 0;    
+    int videoIndex = 1;    
     char arduinoDeviceName[SERIAL_PORT_MAXLENGHT];
     strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);
 
