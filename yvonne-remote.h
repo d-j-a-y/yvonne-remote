@@ -49,7 +49,8 @@
 #define FFMPEG_STATIC_BUILD_INSTALL "/usr/local/bin/"
 
 #define SCENE_DEFAULT_NAME          "yvonne"
-#define LOWQUALITY_RESOLUTION       "640x480"
+#define OLD_LOWQUALITY_RESOLUTION       "640x480"
+#define LOWQUALITY_RESOLUTION       "800x600"
 
 #define SHOOTING_DEFAULT_DELAY      5
 #define LOWQUALITY_DIRECTORY        "./bq640"
