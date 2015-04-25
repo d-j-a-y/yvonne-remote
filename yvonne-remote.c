@@ -41,6 +41,7 @@
 *****************************************************/
 
 #include "yvonne-remote.h"
+#include "ansi-colors.h"
 #include "yvonne-remote-lib.h"
 
 #include <getopt.h>
@@ -167,7 +168,7 @@ int main(int argc, char** argv)
         error(0, 0, "OpenArduinoConnection failed at %s",arduinoDeviceName);
         exit(ERROR_GENERIC);
     }
-    printf("Arduino listen from %s\n", arduinoDeviceName);
+    printf(ANSI_COLOR_CYAN "Arduino listen from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
 
     if (InitArduinoConnection(fdArduinoModem, baudrate, &oldtio))
     {
@@ -247,7 +248,15 @@ int main(int argc, char** argv)
       sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLineForked ("video generation", commandLine) != ERROR_NO)
       {
-          printf("ERROR during video generation cmd line : %s", commandLine);//TODO do something better
+          printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
+      }
+      else
+      {
+          printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
+          printf (ANSI_COLOR_GREEN "####                                              ####\n" ANSI_COLOR_RESET);
+          printf (ANSI_COLOR_GREEN "#### A fresh video will be available to be chewed ####\n" ANSI_COLOR_RESET);
+          printf (ANSI_COLOR_GREEN "#### ----> %s-%d.avi                   ####\n" ANSI_COLOR_RESET, sceneName, videoIndex);
+          printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
       }
 
       startSequence = sceneLowQualityIndex;
