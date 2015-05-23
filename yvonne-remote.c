@@ -233,7 +233,9 @@ int main(int argc, char** argv)
 
     //Generate current photo name
     sprintf(currentPhoto , "./%s-%05d.jpg", sceneName, photoIndex);
-    printf("current photo : %s \n", currentPhoto);
+    //Print info to output
+    if(!quiet || !StateStop)
+      printf(ANSI_COLOR_CYAN "current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
     
     //Execute some shell command
     
