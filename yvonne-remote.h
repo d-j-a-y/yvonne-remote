@@ -50,7 +50,7 @@
 
 #define SCENE_DEFAULT_NAME          "yvonne"
 #define OLD_LOWQUALITY_RESOLUTION       "640x480"
-#define LOWQUALITY_RESOLUTION       "800x600"
+#define LOWQUALITY_RESOLUTION       "1024x576"
 
 #define SHOOTING_DEFAULT_DELAY      5
 #define LOWQUALITY_DIRECTORY        "./bq640"

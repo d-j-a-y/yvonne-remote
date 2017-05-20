@@ -53,6 +53,9 @@
 //TODO option ffmpeg Has option
 //TODO test de presence d'un appareil photo
 
+//FIXME : en reprise (-f -v) la premiere video genere contient des anciennes images : pour reproduire, faire un shooting normal (20f) et 3 video. puis stop puis reprise -f 21 - v 4 , 
+
+
 void usage(void)
 {
     printf("Usage: yvonne-remote [OPTIONS]\n"
@@ -247,7 +250,7 @@ int main(int argc, char** argv)
       //INFO -vframes n or -frames:v to control the quantity of frames
       
       //INFO 25 f/s because all images are duplicated N time
-      sprintf(commandLine, "avconv -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
+      sprintf(commandLine, "avconv -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLineForked ("video generation", commandLine) != ERROR_NO)
       {
           printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
