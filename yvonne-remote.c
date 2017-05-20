@@ -182,7 +182,7 @@ int main(int argc, char** argv)
     mkdir("tmp",S_IFDIR|S_IRWXU|S_IRWXG);       
 
 	int charReceived;
-	int startSequence = 0;
+	int startSequence = 1;
 //TODO malloc?
 	char bufArduino[TEXTMAX];
 //TODO State Mask	
@@ -192,7 +192,7 @@ int main(int argc, char** argv)
   char commandLine[LINE_BUFFER];
   char currentPhoto[TEXTMAX_PHOTO];
   
-  int sceneLowQualityIndex = 0;
+  int sceneLowQualityIndex = 1;
   
   char* stopIndex = 0;
   char* startIndex = 0;
@@ -247,7 +247,7 @@ int main(int argc, char** argv)
       //INFO -vframes n or -frames:v to control the quantity of frames
       
       //INFO 25 f/s because all images are duplicated N time
-      sprintf(commandLine, "%sffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
+      sprintf(commandLine, "avconv -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLineForked ("video generation", commandLine) != ERROR_NO)
       {
           printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
