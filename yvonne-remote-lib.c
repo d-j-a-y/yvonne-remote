@@ -317,3 +317,39 @@ char* strstr_last(const char* str1, const char* str2)
   }
   return strp2;
 }
+
+/**
+ *  FileDuplicateBin
+ *  duplicate a binary file
+ *  @Param : source file
+ *  @Param : target file
+ *  @Return : Error Code
+ */
+int FileDuplicateBin (char* filesource, char* filetarget){
+   FILE *fsource, *ftarget;
+   int ch;
+ 
+   fsource = fopen(filesource, "rb");
+   ftarget = fopen(filetarget, "wb");
+ 
+   size_t l1;
+   unsigned char buffer[8192]; 
+
+   //Data to be read
+   while((l1 = fread(buffer, 1, sizeof buffer, fsource)) > 0) {
+     size_t l2 = fwrite(buffer, 1, l1, ftarget);
+/*
+     if(l2 < l1) {
+       if(ferror(fd2))
+         // handle error
+       else
+         // Handle media full
+     }
+*/
+   }
+
+   fclose(fsource);
+   fclose(ftarget);
+
+   return 1;
+}

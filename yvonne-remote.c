@@ -52,6 +52,8 @@
 //TODO qualité basse qualité Has option
 //TODO option ffmpeg Has option
 //TODO test de presence d'un appareil photo
+//TODO video fps option
+//TODO void print_error(const char * errorstr,...) {printf(ANSI_COLOR_RED errorstr ANSI_COLOR_RESET
 
 //FIXME : en reprise (-f -v) la premiere video genere contient des anciennes images : pour reproduire, faire un shooting normal (20f) et 3 video. puis stop puis reprise -f 21 - v 4 , 
 
@@ -88,6 +90,9 @@ int main(int argc, char** argv)
 
     char sceneName [SCENE_NAME_MAXLENGHT];
     strcpy(sceneName,SCENE_DEFAULT_NAME); //TODO getcwd current dir
+
+	char filesource	[256];
+	char filetarget	[256];
 
     char buf[250];
     if (getcwd(buf, 250))
@@ -308,18 +313,24 @@ int main(int argc, char** argv)
         {
             printf("ERROR during resize cmd line : %s", commandLine);//TODO do something better
         }
-             // TODO TODO TODO TODO TODO TODO TODO TODO 
+        //duplicate the lowquality photo to slowdown the video rythm
         int repeatEachImage = 5;        
+		// TODO video fps control 
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
-        {        
-          //duplicate the lowquality photo to slowdown the video rythm
+        {
+			sprintf(filesource, "%s/%s", "./tmp", currentPhoto);
+			sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+			if(!FileDuplicateBin (filesource, filetarget))
+				printf("ERROR during duplicate file");
           //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, photoIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-          sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+/*
+		  sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
           
           if (ExecuteCommandLine ("duplicate", commandLine) != ERROR_NO)
           {
               printf("ERROR during duplicate cmd line : %s", commandLine);//TODO do something better
           }
+*/		  
         }
 
         photoIndex++;

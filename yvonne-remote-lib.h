@@ -36,5 +36,7 @@ int ExecuteCommandLineForked(char* srtCommandName, char* strCommandLine);
 
 char* strstr_last(const char* str1, const char* str2);
 
+int FileDuplicateBin (char* filesource, char* filetarget);
+
 #endif //__YVONNEREMOTELIB__
 
