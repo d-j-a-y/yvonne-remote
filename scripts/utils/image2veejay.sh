@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version=151116
+version=170527
 extension=JPG
 resolution=1024x576
 framerepeat=5
@@ -43,12 +43,8 @@ case $# in
      extension=$2 ;;
   3) resolution=$3
      extension=$2 ;;
-  2) extension=$2
+  2) extension=$2 ;;
 esac
-
-echo "---------------------------------------"
-echo "renommage en massssssssssssssssssse !"
-echo "frame repeat : ${framerepeat}"
 
 
 ###rename files to sequential numbers
@@ -59,9 +55,45 @@ echo "frame repeat : ${framerepeat}"
 
 #remove trailling / from directory name
 target=${1%/}
+
+if [ ! -d ${target} ]
+then
+  echo "ERROR : \"${target}\" folder doesn't exist. "
+  exit 0
+fi
+
 #print the number of files to go
 filesDOTextension=(${target}/*.${extension})
 numfiles=${#filesDOTextension[@]}
+
+shopt -s nullglob dotglob
+
+if [ "$filesDOTextension" =  "" ]
+then
+  echo "ERROR : \"${target}\" folder contain any \"${extension}\" file"
+  shopt -u nullglob dotglob
+  exit 0
+fi
+
+shopt -u nullglob dotglob
+
+if [ -d ${target}/tmp/ ]
+then
+  read -p "WARNING : Delete \"${target}/tmp/\" ? [y/N] " removedir
+  if [ "$removedir" = "y" ]
+  then
+    rm -r ${target}/tmp/
+  else
+    exit 0;
+  fi
+fi
+
+mkdir ${target}/tmp/
+tmpdir=${target}/tmp
+
+echo "---------------------------------------"
+echo "renommage en massssssssssssssssssse !"
+echo "frame repeat : ${framerepeat}"
 echo "$numfiles to go for ${target}.avi"
 echo "----- -----  --------------- ----- -------- "
 
@@ -69,29 +101,14 @@ echo "----- -----  --------------- ----- -------- "
 ##rename sequential and duplicate the file
 a=0
 
-#echo "TEST TEST TEST TEST TEST TEST TEST TEST "
-#echo " filesDOTextension"
-#echo "TEST TEST TEST TEST TEST TEST TEST TEST "
-
-#read  -p "hello coco : .... " xx
-
-mkdir ${target}/tmp/
-
-tmpdir=${target}/tmp
-
-
-
-
-#for i in $filesDOTextension; do
 for i in ${target}/*.${extension}; do
 
   before=${i}
-  lqfile=${before//${target}/${tmpdir}}
-  lqfile=${lqfile}-lq.jpg
-  echo ${lqfile}
+  lqfile=${before/${target}/${tmpdir}} #replace substr
+  lqfile=${lqfile/.${extension}/-lq.jpg}
+#  echo ${lqfile}
 
   cp ${i} ${lqfile}
-#  lqfile=${tmpdir}/${i}-lq.jpg
   mogrify -resize $resolution ${lqfile}
 
   indexrepeat=framerepeat
@@ -99,7 +116,6 @@ for i in ${target}/*.${extension}; do
   while (( $indexrepeat > 0 ))
   do
     new=$(printf "%04d.jpg" ${a}) #04 pad to length of 4
-    #cp ${i}-lq.jpg ${target}/image-${new}
     ln ${lqfile} ${tmpdir}/image-${new}
     let "a += 1"
 
@@ -119,12 +135,8 @@ echo "---------------- ------   ------- --------"
 # -intra Use only intra frames.
 #ajouter -intra
 
-# "%sffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s ./video/%s-%d.avi", FFMPEG_STATIC_BUILD_INSTALL, startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
-
 #$staticffmpeginstall/ffmpeg -f image2 -r 25 -i ${target}/image-%04d.jpg -q:v 1 -vcodec mjpeg  -pix_fmt yuvj422p -s $resolution ${target}.avi
 avconv -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolution ${target}.avi
-
-#ffmpeg -f image2 -i $1/image-%04d.jpg -r 24 -vcodec mjpeg -q:v 1 -b:v 12000 -s $resolution $1.avi
 
 if [ $? = 0 ]
 then
