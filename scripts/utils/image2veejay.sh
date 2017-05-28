@@ -1,12 +1,27 @@
 #!/bin/bash
 
-version=170527
+#######################ABOUT#######################
+#Generate a fullframe mjpg video (.avi) from given folder's images
+##########################AUTHOR####################
+#Jerome Blanchi aka d-j-a-y (c) WTFPL
+#############ADDITIONAL CREDITS#######################
+###rename files to sequential numbers
+#http://stackoverflow.com/questions/3211595/renaming-files-in-a-folder-to-sequential-numbers
+#by http://stackoverflow.com/users/377927/gauteh
+#######################################################
+
+
+version=170528
 extension=JPG
 resolution=1024x576
 framerepeat=5
 staticffmpeginstall=/home/path/to/ffmpeg-2.5.3-64bit-static
+videoconverter=avconv
 
-#TODO force always landscape format (seems to be actually usefull)
+#TODO / WIP force always landscape format (seems to be actually usefull)
+
+#TODO pb in bq size 1024*576 ---> 866*576 (http://www.imagemagick.org/script/command-line-processing.php#geometry)
+
 #TODO ffmpeg static dir has parameter option / avconv . or a way to automatically detect
 
 #TODO DOC list dependencies
@@ -23,8 +38,6 @@ staticffmpeginstall=/home/path/to/ffmpeg-2.5.3-64bit-static
 
 
 #TODO ratio option
-
-#WIP tmp folder : check exist, remove after //// 
 
 
 case $# in
@@ -46,11 +59,6 @@ case $# in
   2) extension=$2 ;;
 esac
 
-
-###rename files to sequential numbers
-#http://stackoverflow.com/questions/3211595/renaming-files-in-a-folder-to-sequential-numbers
-#by http://stackoverflow.com/users/377927/gauteh
-
 #debug echo $extension $resolution $framerepeat 
 
 #remove trailling / from directory name
@@ -62,20 +70,12 @@ then
   exit 0
 fi
 
-#print the number of files to go
-filesDOTextension=(${target}/*.${extension})
-numfiles=${#filesDOTextension[@]}
-
-shopt -s nullglob dotglob
-
-if [ "$filesDOTextension" =  "" ]
+checkforanyfile=$(find ${target} -maxdepth 1 -type f -name "*.${extension}"|head -n1)
+if [ -z $checkforanyfile ]
 then
   echo "ERROR : \"${target}\" folder contain any \"${extension}\" file"
-  shopt -u nullglob dotglob
   exit 0
 fi
-
-shopt -u nullglob dotglob
 
 if [ -d ${target}/tmp/ ]
 then
@@ -91,16 +91,30 @@ fi
 mkdir ${target}/tmp/
 tmpdir=${target}/tmp
 
+#print the number of files to go
+filesDOTextension=(${target}/*.${extension})
+numfiles=${#filesDOTextension[@]}
 echo "---------------------------------------"
-echo "renommage en massssssssssssssssssse !"
-echo "frame repeat : ${framerepeat}"
-echo "$numfiles to go for ${target}.avi"
+echo "INFO : $numfiles images will be chewed"
 echo "----- -----  --------------- ----- -------- "
 
+step=1
+echo "---------------------------------------"
+echo "STEP $step : checking image orientation !"
+echo "----- -----  --------------- ----- -------- "
+for i in ${target}/*.${extension}; do
+  imsize=`identify -format "%[fx:w] %[fx:h]" ${i}`
+  imwidth=`echo $imsize | cut -d' ' -f 1`
+  imheight=`echo $imsize | cut -d' ' -f 2`
+  echo ${i} $imwidth "(x)" $imheight
+done
 
-##rename sequential and duplicate the file
+let "step += 1"
+echo "---------------------------------------"
+echo "STEP $step : massssssssssive renaming and duplicated ${framerepeat} times !"
+echo "----- -----  --------------- ----- -------- "
+
 a=0
-
 for i in ${target}/*.${extension}; do
 
   before=${i}
@@ -127,26 +141,30 @@ for i in ${target}/*.${extension}; do
   let "numfiles -= 1"
   echo -n "|${numfiles}"
 done
-
 echo ""
+
+let "step += 1"
 echo "---------------------------------------"
-echo "debut de conversionnnnnnn "
+echo "STEP $step : converting to video using ${videoconverter}"
 echo "---------------- ------   ------- --------"
 # -intra Use only intra frames.
 #ajouter -intra
 
+videoconvertion="${videoconverter} -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolution ${target}.avi"
+eval "$videoconvertion"
+
 #$staticffmpeginstall/ffmpeg -f image2 -r 25 -i ${target}/image-%04d.jpg -q:v 1 -vcodec mjpeg  -pix_fmt yuvj422p -s $resolution ${target}.avi
-avconv -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolution ${target}.avi
+#avconv -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolution ${target}.avi
 
 if [ $? = 0 ]
 then
   rm -r ${tmpdir}
   echo "---------------------------------------------"
-  echo "La video" ${target}.avi "est prete a etre joyeusement remixée"
+  echo "video" ${target}.avi "is ready to be happily mixed !"
   echo "-------------  ----------------- --------  ----------"
 else
   echo "--------------------------------------"
-  echo "Problème durant la génération de ${target}.avi"
+  echo "ERROR : $videoconverter failled to create ${target}.avi"
   echo "--- -------- -------------- --------  ------ ----"
   exit 1
 fi
