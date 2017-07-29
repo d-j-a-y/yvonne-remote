@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version=161031
+version=170729
 resolution=800x600
 
 #TODO list dependencies
@@ -27,6 +27,26 @@ case $# in
     exit 2 ;;
 esac
 
+# "ffmpeg avconv" test inspired from
+# https://askubuntu.com/questions/636050/how-to-check-if-two-or-more-programs-are-installed-using-a-bash-script
+i=0; n=0; progs=(ffmpeg avconv);
+for p in "${progs[@]}"; do
+    if hash "$p" &>/dev/null
+    then
+        echo "$p is installed"
+        avconverter=$p
+    else
+        echo "$p is not installed"
+        let n++
+    fi
+done
+
+if [ $n = 2 ] ; then
+	echo "Error : a video converter is missing, please install 'ffmpeg' or 'avconv' and try again"
+	exit 2
+fi
+
+
 inputfile=$(basename "${1}")
 #echo $filename
 extension="${inputfile##*.}"
@@ -50,7 +70,7 @@ echo "---------------- ------   ------- --------"
 #ajouter -intra
 
 #yuvj422p
-avconv -i "${1}" -r 25 -q:v 1 -vcodec mjpeg -acodec pcm_s16le -s $resolution "${outputfile}"
+${avconverter} -i "${1}" -r 25 -q:v 1 -vcodec mjpeg -acodec pcm_s16le -s $resolution "${outputfile}"
 
 if [ $? = 0 ]
 then
