@@ -1,5 +1,5 @@
 /*****************************************************
-* yvonne-remote - pre-release 0.alpha
+* yvonne-remote - 0.1.dev
 * 
 *    yvonne-remote program is used to control automatic photo shooting
 *    and videos generation for a performativ installation name "Yvonne"
@@ -37,6 +37,7 @@
 * shoot due to focus lock" i had with 2.4.8)
 * - ffmpeg (need -start-number option) //TODO minimal version
 * - imagemagick
+* - libmagickwand-6.q16-dev
 *
 *****************************************************/
 
@@ -47,14 +48,14 @@
 #include <getopt.h>
 #include <error.h>
 
-//TODO ffmpeg static install (from http://ffmpeg.gusari.org/static/) Has option
 //TODO dossier basse qualité Has option
 //TODO qualité basse qualité Has option
-//TODO option ffmpeg Has option
+//TODO autoselect ffmpeg/avconv / + perso install (ffmpeg static install (from http://ffmpeg.gusari.org/static/))
 //TODO test de presence d'un appareil photo
 //TODO video fps option
 //TODO void print_error(const char * errorstr,...) {printf(ANSI_COLOR_RED errorstr ANSI_COLOR_RESET
 
+//FIXME configuration arduino pb !!! pb baud ?
 //FIXME : en reprise (-f -v) la premiere video genere contient des anciennes images : pour reproduire, faire un shooting normal (20f) et 3 video. puis stop puis reprise -f 21 - v 4 , 
 
 
@@ -255,7 +256,7 @@ int main(int argc, char** argv)
       //INFO -vframes n or -frames:v to control the quantity of frames
       
       //INFO 25 f/s because all images are duplicated N time
-      sprintf(commandLine, "avconv -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
+      sprintf(commandLine, "ffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
       if (ExecuteCommandLineForked ("video generation", commandLine) != ERROR_NO)
       {
           printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
@@ -286,56 +287,31 @@ int main(int argc, char** argv)
       //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, photoIndex);
       sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);     
       if (ExecuteCommandLine ("capture", commandLine) != ERROR_NO)
-      {
-          printf("ERROR during capture cmd line : %s", commandLine);//TODO do something better
-      }
+        printf("ERROR during capture cmd line : %s", commandLine);//TODO do something better
 
-      //test file creation
       if (open(currentPhoto, O_RDONLY) == -1)
       {
-          //don't do photo's modification, do not increase photo's photoIndex
-          printf("Photo %s shoot has failed.\n", currentPhoto);
+        printf("Photo %s is missing, shoot has failed ?\n", currentPhoto);
       }
       else
       {
+        sprintf(filesource, "%s/%s", "./tmp", currentPhoto);
 
-  /*
-        //resize the photo
-        sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, LOWQUALITY_DIRECTORY, sceneName, photoIndex);
-        if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
-          ;//TODO do something          
-        
-  */      
-        //resize the photo
-        //CURRENTPHOTO - sprintf(commandLine, "mogrify -resize %s -path %s ./%s-%05d.jpg", LOWQUALITY_RESOLUTION, "./tmp", sceneName, photoIndex);
-        sprintf(commandLine, "mogrify -resize %s -path %s %s", LOWQUALITY_RESOLUTION, "./tmp", currentPhoto);      
-        if (ExecuteCommandLine ("resize", commandLine) != ERROR_NO)
-        {
-            printf("ERROR during resize cmd line : %s", commandLine);//TODO do something better
-        }
+	      if(FileResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
+		      printf("ERROR file resize");
+
         //duplicate the lowquality photo to slowdown the video rythm
         int repeatEachImage = 5;        
-		// TODO video fps control 
+        // TODO video fps control
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
         {
-			sprintf(filesource, "%s/%s", "./tmp", currentPhoto);
-			sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-			if(!FileDuplicateBin (filesource, filetarget))
-				printf("ERROR during duplicate file");
-          //CURRENTPHOTO - sprintf(commandLine, "cp %s/%s-%05d.jpg %s/%s-%05d.jpg", "./tmp", sceneName, photoIndex, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-/*
-		  sprintf(commandLine, "cp %s/%s %s/%s-%05d.jpg", "./tmp", currentPhoto, LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-          
-          if (ExecuteCommandLine ("duplicate", commandLine) != ERROR_NO)
-          {
-              printf("ERROR during duplicate cmd line : %s", commandLine);//TODO do something better
-          }
-*/		  
+          sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+          if(!FileDuplicateBin (filesource, filetarget))
+            printf("ERROR during duplicate file");
         }
-
         photoIndex++;
       }
-    }    
+    }
     else
     {
       if(!quiet) printf("Shooting paused\n");
@@ -343,9 +319,7 @@ int main(int argc, char** argv)
     }
 //    sleep(1);
   }
-
-    CloseArduinoConnection(fdArduinoModem, &oldtio);
-
-    exit(EXIT_SUCCESS);
+  CloseArduinoConnection(fdArduinoModem, &oldtio);
+  exit(EXIT_SUCCESS);
 }
 

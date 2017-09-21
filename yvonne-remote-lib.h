@@ -27,6 +27,8 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
+#include <wand/MagickWand.h>
+
 int InitArduinoConnection (int iFileDescriptor, int baudrate, struct termios* oldtio);
 void CloseArduinoConnection (int fd, struct termios* oldtio);
 int OpenArduinoConnection (char* arduinoPort);
@@ -37,6 +39,7 @@ int ExecuteCommandLineForked(char* srtCommandName, char* strCommandLine);
 char* strstr_last(const char* str1, const char* str2);
 
 int FileDuplicateBin (char* filesource, char* filetarget);
+int FileResize (char* filesource, char* filetarget, long width, long height);
 
 #endif //__YVONNEREMOTELIB__
 

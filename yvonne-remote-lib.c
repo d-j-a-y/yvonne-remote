@@ -54,7 +54,7 @@ because we don't want to get killed if linenoise sends CTRL-C.
  *   @Param[in] iFileDescriptor , Descripteur de fichier
  *   @Param[in] baudrate , Baudrate (bps) of Arduino
  *   @Param[out] *oldtio , structure pour acceuillir ancienne valeur port
- *   @Return void
+ *   @Return Yvonne Error Code
  */
 int InitArduinoConnection (int iFileDescriptor, int baudrate, struct termios* oldtio)
 {
@@ -208,7 +208,7 @@ void CloseArduinoConnection (int fd, struct termios* oldtio)
  *  ExecuteCommandLine : Execute the command line
  *  @Param : strCommandName, name of the Command line to execute inside a shell 
  *  @Param : strCommandLine, Command line to execute inside a shell
- *  @Return : Error code
+ *  @Return : Yvonne Error code
  */
 int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
 {
@@ -240,7 +240,7 @@ int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
  *  ExecuteCommandLineForked : Execute the command line in a child process and exit
  *  @Param : strCommandName, name of the Command line to execute inside a shell  
  *  @Param : strCommandLine, Command line to execute inside a shell
- *  @Return : Error code
+ *  @Return : Yvonne Error code
  */
 int ExecuteCommandLineForked(char* strCommandName, char* strCommandLine)
 {
@@ -327,7 +327,6 @@ char* strstr_last(const char* str1, const char* str2)
  */
 int FileDuplicateBin (char* filesource, char* filetarget){
    FILE *fsource, *ftarget;
-   int ch;
  
    fsource = fopen(filesource, "rb");
    ftarget = fopen(filetarget, "wb");
@@ -337,7 +336,7 @@ int FileDuplicateBin (char* filesource, char* filetarget){
 
    //Data to be read
    while((l1 = fread(buffer, 1, sizeof buffer, fsource)) > 0) {
-     size_t l2 = fwrite(buffer, 1, l1, ftarget);
+    /* size_t l2 = */ fwrite(buffer, 1, l1, ftarget);
 /*
      if(l2 < l1) {
        if(ferror(fd2))
@@ -351,5 +350,58 @@ int FileDuplicateBin (char* filesource, char* filetarget){
    fclose(fsource);
    fclose(ftarget);
 
-   return 1;
+   return ERROR_NO;
+}
+
+/**
+ *  FileResize
+ *  resize an image (code from imagickwand example)
+ *  @Param : source file
+ *  @Param : target file
+ *  @Return : ImagickWand Error Code
+ */
+int FileResize (char* filesource, char* filetarget, long width, long height){
+#define ThrowWandException(wand) \
+{ \
+  char \
+    *description; \
+ \
+  ExceptionType \
+    severity; \
+ \
+  description=MagickGetException(wand,&severity); \
+  (void) fprintf(stderr,"%s %s %lu %s\n",GetMagickModule(),description); \
+  description=(char *) MagickRelinquishMemory(description); \
+  exit(-1); \
+}
+
+  MagickBooleanType
+    status;
+
+  MagickWand
+    *magick_wand;
+
+  /*
+    Read an image.
+  */
+  MagickWandGenesis();
+  magick_wand=NewMagickWand();
+  status=MagickReadImage(magick_wand,filesource);
+  if (status == MagickFalse)
+    ThrowWandException(magick_wand);
+  /*
+    Turn the images into a thumbnail sequence.
+  */
+  MagickResetIterator(magick_wand);
+  while (MagickNextImage(magick_wand) != MagickFalse)
+    MagickResizeImage(magick_wand,width,height,LanczosFilter,1.0);
+  /*
+    Write the image then destroy it.
+  */
+  status=MagickWriteImages(magick_wand,filetarget,MagickTrue);
+  if (status == MagickFalse)
+    ThrowWandException(magick_wand);
+  magick_wand=DestroyMagickWand(magick_wand);
+  MagickWandTerminus();
+  return(ERROR_NO);
 }
