@@ -172,14 +172,14 @@ int main(int argc, char** argv)
     int fdArduinoModem;
     struct termios oldtio;
 
-    if((fdArduinoModem = OpenArduinoConnection(arduinoDeviceName)) == ERROR_GENERIC)
+    if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC)
     {
         error(0, 0, "OpenArduinoConnection failed at %s",arduinoDeviceName);
         exit(ERROR_GENERIC);
     }
     printf(ANSI_COLOR_CYAN "Arduino listen from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
 
-    if (InitArduinoConnection(fdArduinoModem, baudrate, &oldtio))
+    if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio))
     {
         perror("InitArduinoConnection failed!");
         exit(ERROR_GENERIC);
@@ -257,7 +257,7 @@ int main(int argc, char** argv)
       
       //INFO 25 f/s because all images are duplicated N time
       sprintf(commandLine, "ffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
-      if (ExecuteCommandLineForked ("video generation", commandLine) != ERROR_NO)
+      if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO)
       {
           printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
       }
@@ -286,8 +286,8 @@ int main(int argc, char** argv)
       //TODO use direclty libgphoto2?
       //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, photoIndex);
       sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);     
-      if (ExecuteCommandLine ("capture", commandLine) != ERROR_NO)
-        printf("ERROR during capture cmd line : %s", commandLine);//TODO do something better
+      if (YvonneExecute ("capture", commandLine) != ERROR_NO)
+        printf(ANSI_COLOR_RED "ERROR during capture cmd line : %s" ANSI_COLOR_RESET, commandLine);//TODO do something better
 
       if (open(currentPhoto, O_RDONLY) == -1)
       {
@@ -297,8 +297,8 @@ int main(int argc, char** argv)
       {
         sprintf(filesource, "%s/%s", "./tmp", currentPhoto);
 
-	      if(FileResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-		      printf("ERROR file resize");
+	      if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
+		      printf(ANSI_COLOR_RED "ERROR file resize" ANSI_COLOR_RESET);
 
         //duplicate the lowquality photo to slowdown the video rythm
         int repeatEachImage = 5;        
@@ -306,8 +306,8 @@ int main(int argc, char** argv)
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--)
         {
           sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-          if(!FileDuplicateBin (filesource, filetarget))
-            printf("ERROR during duplicate file");
+          if(!YvonneFileCopyBin (filesource, filetarget))
+            printf(ANSI_COLOR_RED "ERROR during duplicate file" ANSI_COLOR_RESET);
         }
         photoIndex++;
       }
@@ -319,7 +319,7 @@ int main(int argc, char** argv)
     }
 //    sleep(1);
   }
-  CloseArduinoConnection(fdArduinoModem, &oldtio);
+  YvonneArduinoClose(fdArduinoModem, &oldtio);
   exit(EXIT_SUCCESS);
 }
 

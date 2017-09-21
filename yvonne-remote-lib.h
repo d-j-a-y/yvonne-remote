@@ -29,17 +29,17 @@
 
 #include <wand/MagickWand.h>
 
-int InitArduinoConnection (int iFileDescriptor, int baudrate, struct termios* oldtio);
-void CloseArduinoConnection (int fd, struct termios* oldtio);
-int OpenArduinoConnection (char* arduinoPort);
+int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio);
+void YvonneArduinoClose (int fd, struct termios* oldtio);
+int YvonneArduinoOpen (char* arduinoPort);
 
-int ExecuteCommandLine(char* srtCommandName, char* strCommandLine);
-int ExecuteCommandLineForked(char* srtCommandName, char* strCommandLine);
+int YvonneExecute (char* srtCommandName, char* strCommandLine);
+int YvonneExecuteForked (char* srtCommandName, char* strCommandLine);
 
-char* strstr_last(const char* str1, const char* str2);
+char* strstr_last (const char* str1, const char* str2);
 
-int FileDuplicateBin (char* filesource, char* filetarget);
-int FileResize (char* filesource, char* filetarget, long width, long height);
+int YvonneFileCopyBin (char* filesource, char* filetarget);
+int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height);
 
 #endif //__YVONNEREMOTELIB__
 

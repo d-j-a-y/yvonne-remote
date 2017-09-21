@@ -26,11 +26,11 @@
 // TODO error checking in InitArduinoConnection
 
 /**
- *   OpenArduinoConnection
+ *   YvonneArduinoOpen
  *   @Param : strArduinoPort  ( /dev/ttyACM0 )
  *   @Return : Descripteur de fichier vers Arduino sinon ERROR_GENERIC
  */
-int OpenArduinoConnection (char* strArduinoPort)
+int YvonneArduinoOpen (char* strArduinoPort)
 {
     int fd;
 
@@ -50,13 +50,13 @@ because we don't want to get killed if linenoise sends CTRL-C.
 }
 
 /**
- *   InitArduinoConnection
+ *   YvonneArduinoInit
  *   @Param[in] iFileDescriptor , Descripteur de fichier
  *   @Param[in] baudrate , Baudrate (bps) of Arduino
  *   @Param[out] *oldtio , structure pour acceuillir ancienne valeur port
  *   @Return Yvonne Error Code
  */
-int InitArduinoConnection (int iFileDescriptor, int baudrate, struct termios* oldtio)
+int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio)
 {
     struct termios newtio;
 
@@ -192,11 +192,11 @@ included by <termios.h> */
 }
 
 /**
- *  CloseArduinoConnection
+ *  YvonneArduinoClose
  *  @Param : fd, Descripteur de fichier de la connexion
  *  @Return :
  */
-void CloseArduinoConnection (int fd, struct termios* oldtio)
+void YvonneArduinoClose (int fd, struct termios* oldtio)
 {
     /* restore the old port settings */
     tcsetattr(fd,TCSANOW,oldtio);
@@ -205,12 +205,12 @@ void CloseArduinoConnection (int fd, struct termios* oldtio)
 }
 
 /**
- *  ExecuteCommandLine : Execute the command line
+ *  YvonneExecute : Execute the command line
  *  @Param : strCommandName, name of the Command line to execute inside a shell 
  *  @Param : strCommandLine, Command line to execute inside a shell
  *  @Return : Yvonne Error code
  */
-int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
+int YvonneExecute (char* strCommandName, char* strCommandLine)
 {
     FILE *pipe;
     //get a pipe for the command line
@@ -237,12 +237,12 @@ int ExecuteCommandLine(char* strCommandName, char* strCommandLine)
 }
 
 /**
- *  ExecuteCommandLineForked : Execute the command line in a child process and exit
+ *  YvonneExecuteForked : Execute the command line in a child process and exit
  *  @Param : strCommandName, name of the Command line to execute inside a shell  
  *  @Param : strCommandLine, Command line to execute inside a shell
  *  @Return : Yvonne Error code
  */
-int ExecuteCommandLineForked(char* strCommandName, char* strCommandLine)
+int YvonneExecuteForked (char* strCommandName, char* strCommandLine)
 {
     FILE *pipe;
     pid_t process_id;
@@ -282,7 +282,7 @@ int ExecuteCommandLineForked(char* strCommandName, char* strCommandLine)
  *  @Param : the substring to find
  *  @Return : ptr to the last substring or NULL if not found
  */
-char* strstr_last(const char* str1, const char* str2)
+char* strstr_last (const char* str1, const char* str2)
 {
   char* strp;
   char* strp2;  
@@ -319,13 +319,13 @@ char* strstr_last(const char* str1, const char* str2)
 }
 
 /**
- *  FileDuplicateBin
+ *  YvonneFileCopyBin
  *  duplicate a binary file
  *  @Param : source file
  *  @Param : target file
  *  @Return : Error Code
  */
-int FileDuplicateBin (char* filesource, char* filetarget){
+int YvonneFileCopyBin (char* filesource, char* filetarget){
    FILE *fsource, *ftarget;
  
    fsource = fopen(filesource, "rb");
@@ -360,7 +360,7 @@ int FileDuplicateBin (char* filesource, char* filetarget){
  *  @Param : target file
  *  @Return : ImagickWand Error Code
  */
-int FileResize (char* filesource, char* filetarget, long width, long height){
+int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height){
 #define ThrowWandException(wand) \
 { \
   char \
