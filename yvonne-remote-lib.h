@@ -28,6 +28,7 @@
 #include <fcntl.h>
 
 #include <wand/MagickWand.h>
+#include <gphoto2/gphoto2-camera.h>
 
 int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio);
 void YvonneArduinoClose (int fd, struct termios* oldtio);
@@ -40,6 +41,13 @@ char* strstr_last (const char* str1, const char* str2);
 
 int YvonneFileCopyBin (char* filesource, char* filetarget);
 int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height);
+
+
+int YvonnePhotoCaptureInit (Camera *camera, GPContext *context);
+int YvonnePhotoCaptureUnref (Camera *camera, GPContext *context);
+int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename);
+void YvonnePhotoCaptureError (GPContext *context, const char *format, va_list args, void *data);
+void YvonnePhotoCaptureMessage (GPContext *context, const char *format, va_list args, void *data);
 
 #endif //__YVONNEREMOTELIB__
 
