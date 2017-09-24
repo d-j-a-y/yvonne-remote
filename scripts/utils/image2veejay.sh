@@ -12,13 +12,15 @@
 
 
 version=170729
-extension=JPG
-resolution=1024x576
+typefile=JPG
+resolusionvideo=1024x576
 framerepeat=5
-staticffmpeginstall=/home/path/to/ffmpeg-2.5.3-64bit-static
-videoconverter=avconv
+#staticffmpeginstall=/home/path/to/ffmpeg-2.5.3-64bit-static
+#videoconverter=avconv
 
 #TODO / WIP force always landscape format (seems to be actually usefull)
+
+#TODO facultativ format landscape test (slow)
 
 #TODO pb in bq size 1024*576 ---> 866*576 (http://www.imagemagick.org/script/command-line-processing.php#geometry)
 
@@ -30,24 +32,6 @@ videoconverter=avconv
 #TODO DOC list dependencies
 
 #TODO third parameter (rez) check validity
-#TODO nice option parameter ! while [ $# -gt 0 ]; do blabla shift
-
-
-#while [ $# -gt 0 ]
-#do
-#  case "$1" in
-#    -t) typefile=$2  #extension
-#        echo "t:$2"
-#        shift; shift
-#    -s) resolusionvideo=$2 #resolusion
-#        echo "s:$2"
-#        shift; shift
-#    -d) sourcedirectory=$2 #target
-#        echo "d:$2"
-#        shift; shift
-#  esac
-#done
-
 
 #TODO ratio option
 
@@ -55,72 +39,55 @@ usage ()
 {
 echo "---------------------------------------"
   echo "Create a mjpg i-frame only video (.avi) from images"
-  echo "-d : source directory of images and video name" ####MANDATORY ? read ?
-  echo "-t : file type (defaut : $extension)"
-  echo "-s : video size HxL (default : $resolution)"
-  echo "-r : image repetition (default : $framerepeat)"
+  echo "-d : images source directory (also used has video name)" ####MANDATORY ? read ?
+  echo "-t : file type [optionnal] defaut : $typefile"
+  echo "-s : video size HxL [optionnal] default : $resolusionvideo"
+  echo "-r : image repetition [optionnal] default : $framerepeat"
   echo "----------      -------   --  ----- -  ---------- --------"
 }
 
-
-#case $# in
-#  0) echo "---------------------------------------"
-#  echo "Erreur : $0: not enough arguments"
-#  echo "Génère une vidéo (mjpg 1024x576) à partir d'une série d'images"
-#  echo "arg1) Nom du dossier contenant les images (qui donne le nom a la vidéo)"
-#  echo "arg2) Extension des images (JPG par défaut)"
-##  echo "arg3) Nombre pour la numérotation (4 par défaut)"
-#  echo "arg3) Résolution de la vidéo HxL (1024x576 par défaut)"
-#  echo "arg4) Nombre de repetition des images (5 par défaut)"
-#  echo "----------      -------   --  ----- -  ---------- --------"
-#  exit 2 ;;
-#  4) framerepeat=$4
-#     resolution=$3
-#     extension=$2 ;;
-#  3) resolution=$3
-#     extension=$2 ;;
-#  2) extension=$2 ;;
-#esac
-
-#debug echo $extension $resolution $framerepeat 
-
-#remove trailling / from directory name
-target=${1%/}
+echoerror ()
+{
+  echo "---------------------------------------"
+  echo $1
+}
 
 numparam=$#
 
 if [ "$numparam" -eq 0 ]; then
-  echo "---------------------------------------"
+  echoerror "Error : source directory missing (or not enough arguments)"
 #read -p  "source folder : "  target
-  echo "Error : not enough arguments (source directory missing)"
   usage
   exit 2
 fi
 
 let "remainder = $numparam % 2"
 if [ "$remainder" -eq 1 ]; then
-  echo "---------------------------------------"
-  echo "Error : not enough arguments (odd arguments)"
+  echoerror "Error : odd arguments (or not enough arguments)"
   usage
   exit 2
 fi
 
-echo "TESSSSSST ARGS"
 while [ $# -gt 0 ]
 do
   case "$1" in
-    -t) typefile=$2  #extension
-        echo "t:$2"
+    -t) typefile=$2  #TODO test if $2 exist
+        echo "t:$typefile"
         shift; shift ;;
-    -s) resolusionvideo=$2 #resolusion
-        echo "s:$2"
+    -s) resolusionvideo=$2 #TODO test if $2 exist
+        echo "s:$resolusionvideo"
         shift; shift ;;
-    -d) sourcedirectory=$2 #target
-        echo "d:$2"
+    -d) sourcedirectory=${2%/} # TODO test if $2 exist remove trailling / from directory name
+        echo "d:$sourcedirectory"
         shift; shift ;;
     *)  shift ;;
   esac
 done
+
+if [ ! -d ${sourcedirectory} ]; then
+  echoerror "ERROR : \"${sourcedirectory}\" folder doesn't exist. "
+  exit 0
+fi
 
 # "ffmpeg avconv" test inspired from 
 # https://askubuntu.com/questions/636050/how-to-check-if-two-or-more-programs-are-installed-using-a-bash-script
@@ -137,40 +104,34 @@ for p in "${progs[@]}"; do
 done
 
 if [ $n = 2 ] ; then
-	echo "Error : a video converter is missing, please install 'ffmpeg' or 'avconv' and try again"
+	echoerror "Error : a video converter is missing, please install 'ffmpeg' or 'avconv' and try again"
 	exit 2
 fi
 
-
-if [ ! -d ${target} ]; then
-  echo "ERROR : \"${target}\" folder doesn't exist. "
-  exit 0
-fi
-
-checkforanyfile=$(find ${target} -maxdepth 1 -type f -name "*.${extension}"|head -n1)
+checkforanyfile=$(find ${sourcedirectory} -maxdepth 1 -type f -name "*.${typefile}"|head -n1)
 if [ -z $checkforanyfile ]; then
-  echo "ERROR : \"${target}\" folder contain any \"${extension}\" file"
+  echo "ERROR : \"${sourcedirectory}\" folder contain any \"${typefile}\" file"
   echo "Bye"
   exit 0
 fi
 
 #################TEMPDIR#
-if [ -d ${target}/tmp/ ]; then
-  read -p "WARNING : Delete \"${target}/tmp/\" ? [y/N] " removedir
+if [ -d ${sourcedirectory}/tmp/ ]; then
+  read -p "WARNING : Delete \"${sourcedirectory}/tmp/\" ? [y/N] " removedir
   if [ "$removedir" = "y" ]; then
-    rm -r ${target}/tmp/
+    rm -r ${sourcedirectory}/tmp/
   else
     echo "Bye"
     exit 0;
   fi
 fi
 
-mkdir ${target}/tmp/
-tmpdir=${target}/tmp
+mkdir ${sourcedirectory}/tmp/
+tmpdir=${sourcedirectory}/tmp
 #TMPDIR##################
 
 #print the number of files to go
-filesDOTextension=(${target}/*.${extension})
+filesDOTextension=(${sourcedirectory}/*.${typefile})
 numfiles=${#filesDOTextension[@]}
 echo "---------------------------------------"
 echo "INFO : $numfiles images will be chewed"
@@ -178,16 +139,16 @@ echo "----- -----  --------------- ----- -------- "
 
 step=1
 echo "---------------------------------------"
-echo "STEP $step : checking image orientation !"
+echo "STEP $step : checking image orientation..."
 echo "----- -----  --------------- ----- -------- "
-for i in ${target}/*.${extension}; do
+for i in ${sourcedirectory}/*.${typefile}; do
   imsize=`identify -format "%[fx:w] %[fx:h]" ${i}`
   imwidth=`echo $imsize | cut -d' ' -f 1`
   imheight=`echo $imsize | cut -d' ' -f 2`
   if [ "$imwidth" -lt "$imheight" ]; then
     read -p "WARNING : ${i} orientation seems to be portrait :  $imwidth x $imheight - continue ? [y/N] " answer
     if [ "$answer" = "N" ]; then
-      rm -r ${target}/tmp/
+      rm -r ${sourcedirectory}/tmp/
       echo "Bye"
       exit 0;
     fi
@@ -196,19 +157,19 @@ done
 
 let "step += 1"
 echo "---------------------------------------"
-echo "STEP $step : massssssssssive renaming and duplicated ${framerepeat} times !"
+echo "STEP $step : massssssssssive renaming & duplication ${framerepeat}x ..."
 echo "----- -----  --------------- ----- -------- "
 
 a=0
-for i in ${target}/*.${extension}; do
+for i in ${sourcedirectory}/*.${typefile}; do
 
   before=${i}
-  lqfile=${before/${target}/${tmpdir}} #replace substr
-  lqfile=${lqfile/.${extension}/-lq.jpg}
+  lqfile=${before/${sourcedirectory}/${tmpdir}} #replace substr
+  lqfile=${lqfile/.${typefile}/-lq.jpg}
 #  echo ${lqfile}
 
   cp ${i} ${lqfile}
-  mogrify -resize $resolution ${lqfile}
+  mogrify -resize $resolusionvideo ${lqfile}
 
   indexrepeat=framerepeat
 
@@ -228,12 +189,12 @@ echo ""
 
 let "step += 1"
 echo "---------------------------------------"
-echo "STEP $step : converting to video using ${videoconverter}"
+echo "STEP $step : converting to video using ${avconverter}"
 echo "---------------- ------   ------- --------"
 # -intra Use only intra frames.
 #ajouter -intra
 
-videoconvertion="${videoconverter} -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolution ${target}.avi"
+videoconvertion="${avconverter} -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolusionvideo ${sourcedirectory}.avi"
 eval "$videoconvertion"
 
 #$staticffmpeginstall/ffmpeg -f image2 -r 25 -i ${target}/image-%04d.jpg -q:v 1 -vcodec mjpeg  -pix_fmt yuvj422p -s $resolution ${target}.avi
@@ -242,11 +203,11 @@ eval "$videoconvertion"
 if [ $? = 0 ]; then
   rm -r ${tmpdir}
   echo "---------------------------------------------"
-  echo "video" ${target}.avi "is ready to be happily mixed !"
+  echo "video" ${sourcedirectory}.avi "is ready to be happily mixed !"
   echo "-------------  ----------------- --------  ----------"
 else
   echo "--------------------------------------"
-  echo "ERROR : $videoconverter failled to create ${target}.avi"
+  echo "ERROR : $avconverter failled to create ${sourcedirectory}.avi"
   echo "--- -------- -------------- --------  ------ ----"
   exit 1
 fi
