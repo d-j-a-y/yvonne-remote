@@ -529,32 +529,32 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
             printf("Unexpected event received from camera: %d\n", (int)type);
         }
     }
+
     return ERROR_NO;
 }
 
 /**
  *  YvonnePhotoCaptureError
  *  capture a photo from camera using gphoto2 lib (code from http://sepharads.blogspot.de/2011/11/camera-tethered-capturing-using.html)
- *  @Param : gphoto2 camera
+ *  @Param : FIXME
  *  @Param : gphoto2 context
- *  @Param : target file
+ *  @Param : FIXME
  *  @Return : 
  */
-void YvonnePhotoCaptureError (GPContext *context, const char *format, va_list args, void *data) {
-    fprintf(stderr, "*** Contexterror ***\n");
-    vfprintf(stderr, format, args);
-    fprintf(stderr, "\n");
+void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
+        fprintf  (stderr, "\n*** Contexterror ***              \n%s\n",str);
+        fflush   (stderr);
 }
 
 /**
  *  YvonnePhotoCaptureMessage
  *  capture a photo from camera using gphoto2 lib (code from http://sepharads.blogspot.de/2011/11/camera-tethered-capturing-using.html)
  *  @Param : gphoto2 camera
- *  @Param : gphoto2 context
- *  @Param : target file
+ *  @Param : FIXME
+ *  @Param : FIXME
  *  @Return : 
  */
-void YvonnePhotoCaptureMessage (GPContext *context, const char *format, va_list args, void *data) {
-    vprintf(format, args);
-    printf("\n");
+void YvonnePhotoCaptureMessage (GPContext *context, const char *str, void *data) {
+    fprintf  (stderr, "%s\n", str);
+    fflush   (stderr);
 }

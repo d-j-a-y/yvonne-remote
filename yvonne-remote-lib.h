@@ -46,8 +46,8 @@ int YvonnePhotoResize (char* filesource, char* filetarget, long width, long heig
 int YvonnePhotoCaptureInit (Camera *camera, GPContext *context);
 int YvonnePhotoCaptureUnref (Camera *camera, GPContext *context);
 int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename);
-void YvonnePhotoCaptureError (GPContext *context, const char *format, va_list args, void *data);
-void YvonnePhotoCaptureMessage (GPContext *context, const char *format, va_list args, void *data);
+void YvonnePhotoCaptureError (GPContext *context, const char *format, void *data);
+void YvonnePhotoCaptureMessage (GPContext *context, const char *format, void *data);
 
 #endif //__YVONNEREMOTELIB__
 

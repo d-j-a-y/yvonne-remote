@@ -48,6 +48,7 @@
 
 #include <getopt.h>
 #include <error.h>
+#include <stdbool.h>
 
 //TODO dossier basse qualité Has option
 //TODO qualité basse qualité Has option
@@ -203,7 +204,9 @@ int main(int argc, char** argv)
         gp_camera_free(gpcamera);
         return 1; //FIXME
     }
-
+    //give other access to the camera
+    gp_camera_exit (gpcamera,gpcontext);
+    bool CameraExited = TRUE;
 
     if(photoIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
     
@@ -225,7 +228,6 @@ int main(int argc, char** argv)
 
     char* stopIndex = 0;
     char* startIndex = 0;
-  
 
     //! here start the (interesting) work
     while (!StateQuit) {
@@ -302,7 +304,7 @@ int main(int argc, char** argv)
 
       printf("Capturing to file %s\n", currentPhoto);
       YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto);
-
+      CameraExited = FALSE;
       if (open(currentPhoto, O_RDONLY) == -1) {
         printf("Photo %s is missing, shoot has failed ?\n", currentPhoto);
       }
@@ -324,6 +326,10 @@ int main(int argc, char** argv)
       }
     }
     else {
+      if(!CameraExited){
+        gp_camera_exit (gpcamera,gpcontext);
+        CameraExited = TRUE;
+      }
       if(!quiet) printf("Shooting paused\n");
       sleep(3);
     }
