@@ -58,6 +58,22 @@
 //TODO void print_error(const char * errorstr,...) {printf(ANSI_COLOR_RED errorstr ANSI_COLOR_RESET
 //TODO ctrl-z
 
+//FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
+/*
+*** Contexterror ***              
+PTP Store Not Available
+Pathname on the camera: <�	��kMӳ�TQ���:��TR/kz�eiAQX!lg$g^�?�~̌����R��$`��uϪ�%T(=�F(xԺ�Vc������@T
+                         �*6`y���H:�ę�����Y1�H�|������&��P�W#"���V�-Q�iX���ȑ$;ym�<�	��kMӳ�TQ���:��TR
+
+*** Contexterror ***              
+The path '<�	��kMӳ�TQ���:��TR' is not absolute.
+Deleting
+
+*** Contexterror ***              
+The path '<�	��kMӳ�TQ���:��TR' is not absolute.
+Wait for events from camera
+yvonne-remote-lib.c YvonnePhotoResize 393 insufficient image data in file `./yvonne-00002.jpg' @ error/jpeg.c/ReadJPEGImage/1039
+*/
 //FIXME camera setting unavailable - gphoto release cam between capture ?
 //FIXME configuration arduino pb !!! pb baud ?
 //FIXME : en reprise (-f -v) la premiere video genere contient des anciennes images : pour reproduire, faire un shooting normal (20f) et 3 video. puis stop puis reprise -f 21 - v 4 , 
@@ -96,6 +112,9 @@ int main(int argc, char** argv)
     char sceneName [SCENE_NAME_MAXLENGHT];
     strcpy(sceneName,SCENE_DEFAULT_NAME); //TODO getcwd current dir
 
+    char logMessage [LOG_MAXLENGHT];
+    int logLenght = 0;
+
     char filesource	[256];
     char filetarget	[256];
 
@@ -119,6 +138,17 @@ int main(int argc, char** argv)
         {"quiet",     no_argument,       0, 'q'},
         {NULL,        0,                 0,  0}
     };
+
+    char* logFile="yvonne.log";
+    int logDescriptor;
+    if ((logDescriptor=open(logFile, O_RDWR|O_CREAT|O_EXCL)) == -1) {
+        error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
+        perror("");
+        exit(ERROR_GENERIC);
+    }
+    fchmod(logDescriptor, S_IRUSR|S_IWUSR);
+    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);
+    write(logDescriptor, logMessage, logLenght*sizeof(char));
 
     while(1) {
         opt = getopt_long (argc, argv, "hqp:b:s:v:f:d:",
@@ -176,7 +206,7 @@ int main(int argc, char** argv)
     struct termios oldtio;
 
     if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
-        error(0, 0, "OpenArduinoConnection failed at %s",arduinoDeviceName);
+        error(0, 0, ANSI_COLOR_RED "OpenArduinoConnection failed at %s"  ANSI_COLOR_RESET,arduinoDeviceName);
         exit(ERROR_GENERIC);
     }
     printf(ANSI_COLOR_CYAN "Arduino listen from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
@@ -283,6 +313,9 @@ int main(int argc, char** argv)
             printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
         }
 
+        logLenght = sprintf(logMessage, "VIDEO %s-%d.avi : %d ---> %d\n", sceneName, videoIndex,startSequence, sceneLowQualityIndex);
+        write(logDescriptor, logMessage, logLenght*sizeof(char));
+
         startSequence = sceneLowQualityIndex;
         videoIndex++;
 
@@ -343,7 +376,10 @@ int main(int argc, char** argv)
     gp_camera_unref(gpcamera);
     gp_context_unref(gpcontext);
 
-
+    //close log
+    logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);
+    write(logDescriptor, logMessage, logLenght*sizeof(char));
+    close(logDescriptor);
     exit(EXIT_SUCCESS);
 }
 

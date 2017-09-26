@@ -37,7 +37,7 @@
 #define ERROR_NO      0
 #define ERROR_GENERIC 1
 
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
+#define _POSIX_SOURCE 1 /* POSIX compliant source FIXME */
 
 #define LINE_BUFFER                 255
 #define TEXTMAX                     255
@@ -45,6 +45,7 @@
 
 #define SERIAL_PORT_MAXLENGHT       80
 #define SCENE_NAME_MAXLENGHT        20
+#define LOG_MAXLENGHT               80
 
 #define FFMPEG_STATIC_BUILD_INSTALL "/usr/local/bin/"
 
