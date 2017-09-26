@@ -70,6 +70,15 @@ fi
 
 while [ $# -gt 0 ]
 do
+
+# FIXME Test dual parameters
+#  case "$1" in
+#    -t) 
+#    -s) 
+#    -d) if [ $2 
+#    *)  shift ;;
+#  esac
+
   case "$1" in
     -t) typefile=$2  #TODO test if $2 exist
         echo "t:$typefile"
@@ -79,6 +88,9 @@ do
         shift; shift ;;
     -d) sourcedirectory=${2%/} # TODO test if $2 exist remove trailling / from directory name
         echo "d:$sourcedirectory"
+        shift; shift ;;
+    -r) framerepeat=$2 # TODO test if $2 exist
+        echo "r:$framerepeat"
         shift; shift ;;
     *)  shift ;;
   esac
