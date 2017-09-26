@@ -49,6 +49,7 @@
 #include <getopt.h>
 #include <error.h>
 #include <stdbool.h>
+#include <signal.h>
 
 //TODO dossier basse qualité Has option
 //TODO qualité basse qualité Has option
@@ -98,6 +99,12 @@ void usage(void)
     exit(EXIT_SUCCESS);
 }
 
+bool volatile keepRunning = true;
+
+void intHandler(int dummy) {
+    keepRunning = false;
+}
+
 int main(int argc, char** argv)
 {
     // assign defautl value
@@ -121,9 +128,15 @@ int main(int argc, char** argv)
     Camera *gpcamera;
     GPContext *gpcontext;
 
-    char buf[250];
-    if (getcwd(buf, 250))
+    char buf[CWD_MAXLENGHT];
+    if (getcwd(buf, CWD_MAXLENGHT)) {
         printf("%s\n", buf);
+    }
+    else { //FIXME allocate ?
+        error(0, 0, ANSI_COLOR_RED "ERROR get current working dir" ANSI_COLOR_RESET);
+        perror("");
+        exit(ERROR_GENERIC);
+    }
 
     /* parse options */
     int option_index = 0, opt;
@@ -138,17 +151,6 @@ int main(int argc, char** argv)
         {"quiet",     no_argument,       0, 'q'},
         {NULL,        0,                 0,  0}
     };
-
-    char* logFile="yvonne.log";
-    int logDescriptor;
-    if ((logDescriptor=open(logFile, O_RDWR|O_CREAT|O_EXCL)) == -1) {
-        error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
-        perror("");
-        exit(ERROR_GENERIC);
-    }
-    fchmod(logDescriptor, S_IRUSR|S_IWUSR);
-    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);
-    write(logDescriptor, logMessage, logLenght*sizeof(char));
 
     while(1) {
         opt = getopt_long (argc, argv, "hqp:b:s:v:f:d:",
@@ -201,6 +203,19 @@ int main(int argc, char** argv)
         }
     }
 
+    char logFile[]="yvonne.log";
+    int logDescriptor;
+    if ((logDescriptor=open(logFile, O_RDWR|O_CREAT|O_EXCL)) == -1) {
+        error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
+        perror("");
+        exit(ERROR_GENERIC);
+    }
+    fchmod(logDescriptor, S_IRUSR|S_IWUSR);
+    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);
+    write(logDescriptor, logMessage, logLenght*sizeof(char));
+
+    signal(SIGINT, intHandler);
+
     //! establish the connection with the arduino (mega2560) remote
     int fdArduinoModem;
     struct termios oldtio;
@@ -236,7 +251,7 @@ int main(int argc, char** argv)
     }
     //give other access to the camera
     gp_camera_exit (gpcamera,gpcontext);
-    bool CameraExited = TRUE;
+    bool CameraExited = true;
 
     if(photoIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
     
@@ -260,7 +275,7 @@ int main(int argc, char** argv)
     char* startIndex = 0;
 
     //! here start the (interesting) work
-    while (!StateQuit) {
+    while (!StateQuit && keepRunning) {
     //Listen to the Arduino remote
     charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
 
@@ -323,7 +338,7 @@ int main(int argc, char** argv)
     }
 
     //Exit now!
-    if(StateQuit) continue;    
+    if(StateQuit || !keepRunning) continue;
 
     // to command the shooting and resize the image
     if (!StateStop)
@@ -337,7 +352,7 @@ int main(int argc, char** argv)
 
       printf("Capturing to file %s\n", currentPhoto);
       YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto);
-      CameraExited = FALSE;
+      CameraExited = false;
       if (open(currentPhoto, O_RDONLY) == -1) {
         printf("Photo %s is missing, shoot has failed ?\n", currentPhoto);
       }
@@ -361,7 +376,7 @@ int main(int argc, char** argv)
     else {
       if(!CameraExited){
         gp_camera_exit (gpcamera,gpcontext);
-        CameraExited = TRUE;
+        CameraExited = true;
       }
       if(!quiet) printf("Shooting paused\n");
       sleep(3);
@@ -380,6 +395,7 @@ int main(int argc, char** argv)
     logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);
     write(logDescriptor, logMessage, logLenght*sizeof(char));
     close(logDescriptor);
+
     exit(EXIT_SUCCESS);
 }
 
