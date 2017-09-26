@@ -58,6 +58,8 @@
 //TODO video fps option
 //TODO void print_error(const char * errorstr,...) {printf(ANSI_COLOR_RED errorstr ANSI_COLOR_RESET
 //TODO ctrl-z
+//TODO warning error print
+//TODO resume if log exist ?
 
 //FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
 /*
@@ -222,6 +224,7 @@ int main(int argc, char** argv)
 
     if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
         error(0, 0, ANSI_COLOR_RED "OpenArduinoConnection failed at %s"  ANSI_COLOR_RESET,arduinoDeviceName);
+        perror("");
         exit(ERROR_GENERIC);
     }
     printf(ANSI_COLOR_CYAN "Arduino listen from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
@@ -245,18 +248,19 @@ int main(int argc, char** argv)
     "memory card's contents (remove card from camera to speed up).\n");
     int ret = gp_camera_init(gpcamera, gpcontext);
     if (ret < GP_OK) {
-        printf("No camera auto detected.\n");
         gp_camera_free(gpcamera);
-        return 1; //FIXME
+        printf(ANSI_COLOR_RED "No camera auto detected. Maybe check the battery ?\n" ANSI_COLOR_RESET);
+        goto CLOSE_ARDUINO; //FIXME goto
     }
     //give other access to the camera
     gp_camera_exit (gpcamera,gpcontext);
     bool CameraExited = true;
 
-    if(photoIndex == 0) mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
-    
-    mkdir("video",S_IFDIR|S_IRWXU|S_IRWXG);
-    mkdir("tmp",S_IFDIR|S_IRWXU|S_IRWXG);       
+    if(photoIndex == 0) {
+      mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
+      mkdir(VIDEO_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
+      mkdir(TMP_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
+    }
 
 	int charReceived;
 	int startSequence = 1;
@@ -274,6 +278,8 @@ int main(int argc, char** argv)
     char* stopIndex = 0;
     char* startIndex = 0;
 
+    unsigned int shootFailed = 0;
+
     //! here start the (interesting) work
     while (!StateQuit && keepRunning) {
     //Listen to the Arduino remote
@@ -289,9 +295,7 @@ int main(int argc, char** argv)
         if (charReceived) {
             StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
             StateQuit = (strstr(bufArduino, "QUIT") ? 1 : 0);
-
-//TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);          
-
+//TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);
             stopIndex = strstr_last(bufArduino, "STOP");
             startIndex = strstr_last(bufArduino, "START");
 
@@ -316,7 +320,7 @@ int main(int argc, char** argv)
         //INFO -vframes n or -frames:v to control the quantity of frames
 
         //INFO 25 f/s because all images are duplicated N time
-        sprintf(commandLine, "ffmpeg -f image2 -start_number %d -r 25 -i \"./%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 ./video/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, sceneName, videoIndex);
+        sprintf(commandLine, "ffmpeg -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 %s/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);
         if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
             printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
         }
@@ -343,34 +347,51 @@ int main(int argc, char** argv)
     // to command the shooting and resize the image
     if (!StateStop)
     {
+      if(CameraExited) ; //FIXME will solve some ContextError ?
       //take the photo
       //TODO use direclty libgphoto2?
       //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, photoIndex);
+      //IFDEF GPHOTOCMD
     //      sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);
     //      if (YvonneExecute ("capture", commandLine) != ERROR_NO)
     //        printf(ANSI_COLOR_RED "ERROR during capture cmd line : %s" ANSI_COLOR_RESET, commandLine);//TODO do something better
 
       printf("Capturing to file %s\n", currentPhoto);
-      YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto);
-      CameraExited = false;
-      if (open(currentPhoto, O_RDONLY) == -1) {
-        printf("Photo %s is missing, shoot has failed ?\n", currentPhoto);
+      if(YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto) != ERROR_NO){
+        printf(ANSI_COLOR_YELLOW "Photo %s shoot has failed %d time(s).\n"  ANSI_COLOR_RESET, currentPhoto, ++shootFailed);
+        sleep(1);
+        if(shootFailed >= MAX_SHOOT_RETRY_BEFORE_INIT){
+          printf("Camera init again....\n");
+          int ret = gp_camera_init(gpcamera, gpcontext);
+          if (ret < GP_OK) {
+              printf(ANSI_COLOR_RED "ERROR : No camera auto detected. Check battery maybe?\n" ANSI_COLOR_RESET);
+              gp_camera_free(gpcamera);
+              goto CLOSE_CAMERA;
+          }
+        }
       }
       else {
-        sprintf(filesource, "%s/%s", "./tmp", currentPhoto);
-
-        if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-	          printf(ANSI_COLOR_RED "ERROR file resize" ANSI_COLOR_RESET);
-
-        //duplicate the lowquality photo to slowdown the video rythm
-        int repeatEachImage = 5;        
-        // TODO video fps control
-        for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
-          sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-          if(YvonneFileCopyBin (filesource, filetarget) != ERROR_NO)
-            printf(ANSI_COLOR_RED "ERROR during duplicate file" ANSI_COLOR_RESET);
+        CameraExited = false;
+        shootFailed = 0;
+        if (open(currentPhoto, O_RDONLY) == -1) {
+          printf(ANSI_COLOR_YELLOW "Photo %s is missing, shoot has failed ?\n" ANSI_COLOR_RESET, currentPhoto);
         }
-        photoIndex++;
+        else {
+          sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);
+
+          if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
+            printf(ANSI_COLOR_RED "ERROR file resize" ANSI_COLOR_RESET);
+
+          //duplicate the lowquality photo to slowdown the video rythm
+          int repeatEachImage = 5;
+          // TODO video fps control
+          for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
+            sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
+            if(YvonneFileCopyBin (filesource, filetarget) != ERROR_NO)
+              printf(ANSI_COLOR_RED "ERROR during duplicate file" ANSI_COLOR_RESET);
+          }
+          photoIndex++;
+        }
       }
     }
     else {
@@ -383,19 +404,23 @@ int main(int argc, char** argv)
     }
     //    sleep(1);
     }
-    YvonneArduinoClose(fdArduinoModem, &oldtio);
-//    YvonnePhotoCaptureUnref(gpcamera, gpcontext);
 
+CLOSE_CAMERA:
 //FIXME
+//    YvonnePhotoCaptureUnref(gpcamera, gpcontext);
     // close camera
     gp_camera_unref(gpcamera);
     gp_context_unref(gpcontext);
 
+CLOSE_ARDUINO:
+    YvonneArduinoClose(fdArduinoModem, &oldtio);
+
+//CLOSE_LOG:
     //close log
     logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);
     write(logDescriptor, logMessage, logLenght*sizeof(char));
     close(logDescriptor);
-
+    printf(ANSI_COLOR_CYAN "\nSuccessly close, see you next shot!\n" ANSI_COLOR_RESET);
     exit(EXIT_SUCCESS);
 }
 

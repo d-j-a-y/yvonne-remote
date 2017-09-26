@@ -391,6 +391,10 @@ int YvonnePhotoResize (char* filesource, char* filetarget, long width, long heig
   status=MagickReadImage(magick_wand,filesource);
   if (status == MagickFalse)
     ThrowWandException(magick_wand);
+//  { FIXME
+//  magick_wand=DestroyMagickWand(magick_wand);
+//  MagickWandTerminus();
+//  }
   /*
     Turn the images into a thumbnail sequence.
   */
@@ -474,6 +478,7 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
     retval = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
 
     if (retval) {
+        return ERROR_GENERIC;
     // do some error handling, probably return from this function
     //TODO
     }
@@ -485,6 +490,7 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
     retval = gp_file_new_from_fd(&file, fd);
 
     if (retval) {
+        return ERROR_GENERIC;
     //TODO error handling
     }
 
@@ -493,6 +499,7 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
     GP_FILE_TYPE_NORMAL, file, context);
 
     if (retval) {
+        return ERROR_GENERIC;
     //TODO error handling
     }
 
@@ -502,6 +509,7 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
     context);
 
     if (retval) {
+        return ERROR_GENERIC;
     //TODO error handling
     }
 
@@ -542,8 +550,9 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
  *  @Return : 
  */
 void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
-        fprintf  (stderr, "\n*** Contexterror ***              \n%s\n",str);
-        fflush   (stderr);
+  fprintf  (stderr, "\n*** Contexterror ***              \n%s\n",str);
+  fflush   (stderr);
+  //keepRunning = false;
 }
 
 /**
@@ -555,6 +564,6 @@ void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
  *  @Return : 
  */
 void YvonnePhotoCaptureMessage (GPContext *context, const char *str, void *data) {
-    fprintf  (stderr, "%s\n", str);
-    fflush   (stderr);
+  fprintf  (stderr, "%s\n", str);
+  fflush   (stderr);
 }

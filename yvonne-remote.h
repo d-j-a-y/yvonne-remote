@@ -50,17 +50,22 @@
 
 #define FFMPEG_STATIC_BUILD_INSTALL "/usr/local/bin/"
 
-#define SCENE_DEFAULT_NAME          "yvonne"
-#define OLD_LOWQUALITY_RESOLUTION       "640x480"
-#define LOWQUALITY_RESOLUTION       "1024x576"
+#define SCENE_DEFAULT_NAME            "yvonne"
+#define OLD_LOWQUALITY_RESOLUTION     "640x480"
+#define LOWQUALITY_RESOLUTION         "1024x576"
 #define LOWQUALITY_RESOLUTION_W       1024
 #define LOWQUALITY_RESOLUTION_H       576
 
-#define SHOOTING_DEFAULT_DELAY      5
-#define LOWQUALITY_DIRECTORY        "./bq640"
-#define ARDUINO_57600_BAUDRATE    57600
-#define ARDUINO_MEDA2560_ACM0       "/dev/ttyACM0"
-#define ARDUINO_DEFAULT_PORT        ARDUINO_MEDA2560_ACM0
+#define MAX_SHOOT_RETRY_BEFORE_INIT   5
+
+#define SHOOTING_DEFAULT_DELAY        5
+#define LOWQUALITY_DIRECTORY          "./lowk"
+#define VIDEO_DIRECTORY               "./video"
+#define TMP_DIRECTORY                 "./temp"
+
+#define ARDUINO_57600_BAUDRATE        57600
+#define ARDUINO_MEDA2560_ACM0         "/dev/ttyACM0"
+#define ARDUINO_DEFAULT_PORT          ARDUINO_MEDA2560_ACM0
 
 
 #endif //  __YVONNEREMOTE__
