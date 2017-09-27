@@ -98,7 +98,7 @@ void usage(void)
     "\n"
     "Dependecies: gphoto2, ffmpeg, imagemagick\n"
     "\n", ARDUINO_DEFAULT_PORT, SHOOTING_DEFAULT_DELAY, ARDUINO_57600_BAUDRATE);
-    exit(EXIT_SUCCESS);
+
 }
 
 bool volatile keepRunning = true;
@@ -169,7 +169,7 @@ int main(int argc, char** argv)
                 break;
             case 'h':
                 usage();
-                break;
+                exit(EXIT_SUCCESS);
             case 'b':
                 baudrate = strtol(optarg,NULL,10);
                 if( !quiet ) printf("Baudrate (bps) of Arduino set to %d\n",baudrate);
@@ -181,7 +181,7 @@ int main(int argc, char** argv)
                 }
                 else {
                   error(0, 0, "Can't assign Arduino serial port to %s (buffer lenght reached)\n",optarg);
-                  exit(ERROR_GENERIC);
+                  exit(ERROR_GENERIC); //FIXME use nberr++
                 }
                 break;
             case 'f':
@@ -207,12 +207,11 @@ int main(int argc, char** argv)
 
     char logFile[]="yvonne.log";
     int logDescriptor;
-    if ((logDescriptor=open(logFile, O_RDWR|O_CREAT|O_EXCL)) == -1) {
+    if ((logDescriptor=open(logFile, O_WRONLY|O_CREAT/*|O_EXCL*/), 0644) == -1) {
         error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
         perror("");
         exit(ERROR_GENERIC);
     }
-    fchmod(logDescriptor, S_IRUSR|S_IWUSR);
     logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);
     write(logDescriptor, logMessage, logLenght*sizeof(char));
 
