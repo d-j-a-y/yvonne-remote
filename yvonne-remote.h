@@ -23,6 +23,7 @@
 #ifndef __YVONNEREMOTE__
 #define __YVONNEREMOTE__
 
+#include "ansi-colors.h"
 
 #include <stdio.h>
 #include <stdlib.h>

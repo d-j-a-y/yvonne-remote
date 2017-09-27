@@ -564,6 +564,6 @@ void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
  *  @Return : 
  */
 void YvonnePhotoCaptureMessage (GPContext *context, const char *str, void *data) {
-  fprintf  (stderr, "%s\n", str);
+  fprintf  (stderr, ANSI_COLOR_YELLOW "%s\n" ANSI_COLOR_RESET, str);
   fflush   (stderr);
 }

@@ -44,8 +44,6 @@
 #include "yvonne-remote.h"
 #include "yvonne-remote-lib.h"
 
-#include "ansi-colors.h"
-
 #include <getopt.h>
 #include <error.h>
 #include <stdbool.h>
@@ -60,6 +58,7 @@
 //TODO ctrl-z
 //TODO warning error print
 //TODO resume if log exist ?
+//TODO Video generation on the fly during capture 
 
 //FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
 /*
@@ -96,7 +95,7 @@ void usage(void)
     "  -d  --delay=seconds        Delay between two shoot in seconds (default %d)\n"
     "  -b, --baud=rate            Baudrate (bps) of Arduino (default %d)\n"
     "\n"
-    "Dependecies: gphoto2, ffmpeg, imagemagick\n"
+    "Dependecies: libgphoto2, ffmpeg, MagickWand\n"
     "\n", ARDUINO_DEFAULT_PORT, SHOOTING_DEFAULT_DELAY, ARDUINO_57600_BAUDRATE);
 
 }
@@ -207,7 +206,7 @@ int main(int argc, char** argv)
 
     char logFile[]="yvonne.log";
     int logDescriptor;
-    if ((logDescriptor=open(logFile, O_WRONLY|O_CREAT/*|O_EXCL*/), 0644) == -1) {
+    if ((logDescriptor=open(logFile, O_WRONLY|O_CREAT|O_EXCL, 0644)) == -1) {
         error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
         perror("");
         exit(ERROR_GENERIC);
@@ -306,7 +305,7 @@ int main(int argc, char** argv)
     }
 
     //Generate current photo name
-    sprintf(currentPhoto , "./%s-%05d.jpg", sceneName, photoIndex);
+    sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);
     //Print info to output
     if(!quiet || !StateStop)
         printf(ANSI_COLOR_CYAN "current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
@@ -319,7 +318,7 @@ int main(int argc, char** argv)
         //INFO -vframes n or -frames:v to control the quantity of frames
 
         //INFO 25 f/s because all images are duplicated N time
-        sprintf(commandLine, "ffmpeg -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -vcodec mjpeg -s %s -aspect 16:9 %s/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);
+        sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);
         if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
             printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
         }
@@ -379,15 +378,19 @@ int main(int argc, char** argv)
           sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);
 
           if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-            printf(ANSI_COLOR_RED "ERROR file resize" ANSI_COLOR_RESET);
+            printf(ANSI_COLOR_RED "ERROR resizing file %s\n" ANSI_COLOR_RESET, filesource);
 
           //duplicate the lowquality photo to slowdown the video rythm
           int repeatEachImage = 5;
           // TODO video fps control
           for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
             sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-            if(YvonneFileCopyBin (filesource, filetarget) != ERROR_NO)
-              printf(ANSI_COLOR_RED "ERROR during duplicate file" ANSI_COLOR_RESET);
+//            if(YvonneFileCopyBin (filesource, filetarget) != ERROR_NO)
+//              printf(ANSI_COLOR_RED "ERROR duplicating file" ANSI_COLOR_RESET);
+            if(link(filesource, filetarget)!=0) {
+              printf(ANSI_COLOR_RED "ERROR linking files\n" ANSI_COLOR_RESET);
+              perror("");
+            }
           }
           photoIndex++;
         }
