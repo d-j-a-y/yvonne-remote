@@ -55,27 +55,11 @@
 //TODO test de presence d'un appareil photo
 //TODO video fps option
 //TODO void print_error(const char * errorstr,...) {printf(ANSI_COLOR_RED errorstr ANSI_COLOR_RESET
-//TODO ctrl-z
 //TODO warning error print
 //TODO resume if log exist ?
 //TODO Video generation on the fly during capture 
 
 //FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
-/*
-*** Contexterror ***              
-PTP Store Not Available
-Pathname on the camera: <�	��kMӳ�TQ���:��TR/kz�eiAQX!lg$g^�?�~̌����R��$`��uϪ�%T(=�F(xԺ�Vc������@T
-                         �*6`y���H:�ę�����Y1�H�|������&��P�W#"���V�-Q�iX���ȑ$;ym�<�	��kMӳ�TQ���:��TR
-
-*** Contexterror ***              
-The path '<�	��kMӳ�TQ���:��TR' is not absolute.
-Deleting
-
-*** Contexterror ***              
-The path '<�	��kMӳ�TQ���:��TR' is not absolute.
-Wait for events from camera
-yvonne-remote-lib.c YvonnePhotoResize 393 insufficient image data in file `./yvonne-00002.jpg' @ error/jpeg.c/ReadJPEGImage/1039
-*/
 //FIXME camera setting unavailable - gphoto release cam between capture ?
 //FIXME configuration arduino pb !!! pb baud ?
 //FIXME : en reprise (-f -v) la premiere video genere contient des anciennes images : pour reproduire, faire un shooting normal (20f) et 3 video. puis stop puis reprise -f 21 - v 4 , 
@@ -113,12 +97,12 @@ int main(int argc, char** argv)
     char quiet=0;
     int shootingDelay = SHOOTING_DEFAULT_DELAY;
     int photoIndex = 0;
-    int videoIndex = 1;    
+    int videoIndex = 1;
     char arduinoDeviceName[SERIAL_PORT_MAXLENGHT];
-    strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);
+    strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);// FIXME strlcpy
 
     char sceneName [SCENE_NAME_MAXLENGHT];
-    strcpy(sceneName,SCENE_DEFAULT_NAME); //TODO getcwd current dir
+    strcpy(sceneName,SCENE_DEFAULT_NAME); //TODO getcwd current dir // FIXME strlcpy
 
     char logMessage [LOG_MAXLENGHT];
     int logLenght = 0;
@@ -175,7 +159,7 @@ int main(int argc, char** argv)
                 break;
             case 'p':
                 if(strlen(optarg)+1 <= SERIAL_PORT_MAXLENGHT) {
-                  strcpy(arduinoDeviceName, optarg);
+                  strcpy(arduinoDeviceName, optarg);// FIXME strlcpy
                   if(!quiet) printf("Arduino port set to %s\n",arduinoDeviceName);
                 }
                 else {
@@ -193,7 +177,7 @@ int main(int argc, char** argv)
                 break;
             case 's':
                 if(strlen(optarg)+1 <= SCENE_NAME_MAXLENGHT) {
-                  strcpy(sceneName, optarg);
+                  strcpy(sceneName, optarg);// FIXME strlcpy
                   if(!quiet) printf("Scene name set to %s\n",sceneName);
                 }
                 else {
@@ -211,7 +195,7 @@ int main(int argc, char** argv)
         perror("");
         exit(ERROR_GENERIC);
     }
-    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);
+    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);//FIXME snprintf
     write(logDescriptor, logMessage, logLenght*sizeof(char));
 
     signal(SIGINT, intHandler);
@@ -305,7 +289,7 @@ int main(int argc, char** argv)
     }
 
     //Generate current photo name
-    sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);
+    sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
     //Print info to output
     if(!quiet || !StateStop)
         printf(ANSI_COLOR_CYAN "current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
@@ -318,7 +302,7 @@ int main(int argc, char** argv)
         //INFO -vframes n or -frames:v to control the quantity of frames
 
         //INFO 25 f/s because all images are duplicated N time
-        sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);
+        sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);// FIXME snprintf
         if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
             printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
         }
@@ -330,7 +314,13 @@ int main(int argc, char** argv)
             printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
         }
 
-        logLenght = sprintf(logMessage, "VIDEO %s-%d.avi : %d ---> %d\n", sceneName, videoIndex,startSequence, sceneLowQualityIndex);
+        logLenght = sprintf(logMessage, "VIDEO %s-%d.avi : %d ---> %d (%d)\n", //FIXME snprintf
+                            sceneName,
+                            videoIndex,
+                            startSequence,
+                            sceneLowQualityIndex,
+                            photoIndex);
+
         write(logDescriptor, logMessage, logLenght*sizeof(char));
 
         startSequence = sceneLowQualityIndex;
@@ -355,7 +345,27 @@ int main(int argc, char** argv)
     //        printf(ANSI_COLOR_RED "ERROR during capture cmd line : %s" ANSI_COLOR_RESET, commandLine);//TODO do something better
 
       printf("Capturing to file %s\n", currentPhoto);
-      if(YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto) != ERROR_NO){
+      if(YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto) == ERROR_NO){
+        CameraExited = false;
+        shootFailed = 0;
+        sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
+
+        if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
+          printf(ANSI_COLOR_RED "ERROR resizing file %s\n" ANSI_COLOR_RESET, filesource);
+
+        //duplicate the lowquality photo to slowdown the video rythm
+        int repeatEachImage = 5;
+        // TODO video fps control
+        for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
+          sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
+          if(link(filesource, filetarget)!=0) {
+            printf(ANSI_COLOR_RED "ERROR linking files\n" ANSI_COLOR_RESET);
+            perror("");
+          }
+        }
+        photoIndex++;
+      }
+      else {
         printf(ANSI_COLOR_YELLOW "Photo %s shoot has failed %d time(s).\n"  ANSI_COLOR_RESET, currentPhoto, ++shootFailed);
         sleep(1);
         if(shootFailed >= MAX_SHOOT_RETRY_BEFORE_INIT){
@@ -366,33 +376,6 @@ int main(int argc, char** argv)
               gp_camera_free(gpcamera);
               goto CLOSE_CAMERA;
           }
-        }
-      }
-      else {
-        CameraExited = false;
-        shootFailed = 0;
-        if (open(currentPhoto, O_RDONLY) == -1) {
-          printf(ANSI_COLOR_YELLOW "Photo %s is missing, shoot has failed ?\n" ANSI_COLOR_RESET, currentPhoto);
-        }
-        else {
-          sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);
-
-          if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-            printf(ANSI_COLOR_RED "ERROR resizing file %s\n" ANSI_COLOR_RESET, filesource);
-
-          //duplicate the lowquality photo to slowdown the video rythm
-          int repeatEachImage = 5;
-          // TODO video fps control
-          for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
-            sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);
-//            if(YvonneFileCopyBin (filesource, filetarget) != ERROR_NO)
-//              printf(ANSI_COLOR_RED "ERROR duplicating file" ANSI_COLOR_RESET);
-            if(link(filesource, filetarget)!=0) {
-              printf(ANSI_COLOR_RED "ERROR linking files\n" ANSI_COLOR_RESET);
-              perror("");
-            }
-          }
-          photoIndex++;
         }
       }
     }
@@ -419,7 +402,7 @@ CLOSE_ARDUINO:
 
 //CLOSE_LOG:
     //close log
-    logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);
+    logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
     write(logDescriptor, logMessage, logLenght*sizeof(char));
     close(logDescriptor);
     printf(ANSI_COLOR_CYAN "\nSuccessly close, see you next shot!\n" ANSI_COLOR_RESET);

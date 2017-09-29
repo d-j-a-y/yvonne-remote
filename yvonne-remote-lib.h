@@ -39,15 +39,13 @@ int YvonneExecuteForked (char* srtCommandName, char* strCommandLine);
 
 char* strstr_last (const char* str1, const char* str2);
 
-int YvonneFileCopyBin (char* filesource, char* filetarget);
-int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height);
-
-
 int YvonnePhotoCaptureInit (Camera *camera, GPContext *context);
 int YvonnePhotoCaptureUnref (Camera *camera, GPContext *context);
 int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename);
 void YvonnePhotoCaptureError (GPContext *context, const char *format, void *data);
 void YvonnePhotoCaptureMessage (GPContext *context, const char *format, void *data);
+
+int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height);
 
 #endif //__YVONNEREMOTELIB__
 

@@ -32,21 +32,20 @@
  */
 int YvonneArduinoOpen (char* strArduinoPort)
 {
-    int fd;
+  int fd;
 
 /*
 Open modem device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
 */
 //    fd = open(strArduinoPort, O_RDONLY | O_NOCTTY | O_NDELAY);
-    fd = open(strArduinoPort, O_RDWR | O_NONBLOCK);
-    if(fd < 0)
-    {
-        perror("OpenArduinoConnection : ");
-        return ERROR_GENERIC;
-    }
+  fd = open(strArduinoPort, O_RDWR | O_NONBLOCK);
+  if(fd < 0) {
+    perror("OpenArduinoConnection : ");
+    return ERROR_GENERIC;
+  }
 
-    return fd;
+  return fd;
 }
 
 /**
@@ -198,10 +197,10 @@ included by <termios.h> */
  */
 void YvonneArduinoClose (int fd, struct termios* oldtio)
 {
-    /* restore the old port settings */
-    tcsetattr(fd,TCSANOW,oldtio);
-    /* close the file */
-    close(fd);
+  /* restore the old port settings */
+  tcsetattr(fd,TCSANOW,oldtio);
+  /* close the file */
+  close(fd);
 }
 
 /**
@@ -212,28 +211,26 @@ void YvonneArduinoClose (int fd, struct termios* oldtio)
  */
 int YvonneExecute (char* strCommandName, char* strCommandLine)
 {
-    FILE *pipe;
-    //get a pipe for the command line
-    pipe = popen(strCommandLine, "r");
-    if(pipe == NULL)
-    {
-        perror("pipe :");
-        return ERROR_GENERIC;
-    }
+  FILE *pipe;
+  //get a pipe for the command line
+  pipe = popen(strCommandLine, "r");
+  if(pipe == NULL) {
+    perror("pipe :");
+    return ERROR_GENERIC;
+  }
 
-    char outputLine[LINE_BUFFER];
-    int linenr=1;
-    //read the command line output  from the pipe line by line
-    while (fgets(outputLine, LINE_BUFFER, pipe) != NULL)
-    {
-        printf("%s n°%d : %s",strCommandName, linenr, outputLine);
-        ++linenr;
-    }
+  char outputLine[LINE_BUFFER];
+  int linenr=1;
+  //read the command line output  from the pipe line by line
+  while (fgets(outputLine, LINE_BUFFER, pipe) != NULL) {
+    printf("%s n°%d : %s",strCommandName, linenr, outputLine);
+    ++linenr;
+  }
 
-    //close the pipe
-    pclose(pipe);
+  //close the pipe
+  pclose(pipe);
 
-    return ERROR_NO;
+  return ERROR_NO;
 }
 
 /**
@@ -244,35 +241,33 @@ int YvonneExecute (char* strCommandName, char* strCommandLine)
  */
 int YvonneExecuteForked (char* strCommandName, char* strCommandLine)
 {
-    FILE *pipe;
-    pid_t process_id;
+  FILE *pipe;
+  pid_t process_id;
 
-    process_id = fork();
-    //if forked with success return, if fail or child : follow
-    if(process_id && process_id != -1) return ERROR_NO;
+  process_id = fork();
+  //if forked with success return, if fail or child : follow
+  if(process_id && process_id != -1) return ERROR_NO;
 
-    //get a pipe for the command line
-    pipe = popen(strCommandLine, "r");
-    if(pipe == NULL)
-    {
-        perror("pipe :");
-        return ERROR_GENERIC;
-    }
+  //get a pipe for the command line
+  pipe = popen(strCommandLine, "r");
+  if(pipe == NULL) {
+    perror("pipe :");
+    return ERROR_GENERIC;
+  }
 
-    char outputLine[LINE_BUFFER];
-    int linenr=1;
-    //read the command line output  from the pipe line by line
-    while (fgets(outputLine, LINE_BUFFER, pipe) != NULL)
-    {
-        printf("%s n°%d : %s",strCommandName, linenr, outputLine);
-        ++linenr;
-    }
+  char outputLine[LINE_BUFFER];
+  int linenr=1;
+  //read the command line output  from the pipe line by line
+  while (fgets(outputLine, LINE_BUFFER, pipe) != NULL) {
+    printf("%s n°%d : %s",strCommandName, linenr, outputLine);
+    ++linenr;
+  }
 
-    //close the pipe
-    pclose(pipe);
+  //close the pipe
+  pclose(pipe);
 
-    if(process_id == 0)     exit(EXIT_SUCCESS);
-    return ERROR_NO;
+  if(process_id == 0)     exit(EXIT_SUCCESS);
+  return ERROR_NO;
 }
 
 /**
@@ -293,8 +288,7 @@ char* strstr_last (const char* str1, const char* str2)
     return (char*)str1;
 
   len1 = strlen(str1);
-  if(len1 - len2 <= 0)
-  {
+  if(len1 - len2 <= 0) {
     if(strcmp(str1,str2)==0)
         return (char*)str1;   
     return 0;
@@ -306,51 +300,14 @@ char* strstr_last (const char* str1, const char* str2)
     return 0;
     
   strp = (char*)(str1 + len1 - len2);
-  while(strp != str1)
-  {
-    if(*strp == *str2)
-    {
+  while(strp != str1) {
+    if(*strp == *str2) {
       if(strncmp(strp,str2,len2)==0)
         return strp;
     }
     strp--;
   }
   return strp2;
-}
-
-/**
- *  YvonneFileCopyBin
- *  duplicate a binary file
- *  @Param : source file
- *  @Param : target file
- *  @Return : Error Code
- */
-int YvonneFileCopyBin (char* filesource, char* filetarget){
-   FILE *fsource, *ftarget;
- 
-   fsource = fopen(filesource, "rb");
-   ftarget = fopen(filetarget, "wb");
- 
-   size_t l1;
-   unsigned char buffer[8192]; 
-
-   //Data to be read
-   while((l1 = fread(buffer, 1, sizeof buffer, fsource)) > 0) {
-    /* size_t l2 = */ fwrite(buffer, 1, l1, ftarget);
-/*
-     if(l2 < l1) {
-       if(ferror(fd2))
-         // handle error
-       else
-         // Handle media full
-     }
-*/
-   }
-
-   fclose(fsource);
-   fclose(ftarget);
-
-   return ERROR_NO;
 }
 
 /**
@@ -537,6 +494,15 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
             printf("Unexpected event received from camera: %d\n", (int)type);
         }
     }
+/*
+    lseek(fd, 0, SEEK_SET);
+    char buff;
+    if (read(fd, &buff, sizeof(char)) == -1) {
+      printf(ANSI_COLOR_YELLOW "Photo %s is empty, shoot has failed ?\n" ANSI_COLOR_RESET, filename);
+      return ERROR_GENERIC;
+    }
+*/
+    close (fd);
 
     return ERROR_NO;
 }
