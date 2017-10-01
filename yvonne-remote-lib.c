@@ -369,45 +369,49 @@ int YvonnePhotoResize (char* filesource, char* filetarget, long width, long heig
   return(ERROR_NO);
 }
 
+
 /**
  *  YvonnePhotoCaptureInit
  *  init libgphoto2 camera capture
- *  @Param : gphoto2 camera
- *  @Param : gphoto2 context
+ *  @Param : YvonneCamera struct to fill
  *  @Return : Yvonne Error Code
  */
-int YvonnePhotoCaptureInit (Camera *camera, GPContext *context) {
-    gp_camera_new (&camera);
-    context = gp_context_new();
+int YvonnePhotoCaptureInit (YvonneCamera* cam) {
+    cam->ctx = gp_context_new();
 
     // set callbacks for camera messages
-    gp_context_set_error_func(context, YvonnePhotoCaptureError, NULL);
-    gp_context_set_message_func(context, YvonnePhotoCaptureMessage, NULL);
+    gp_context_set_error_func(cam->ctx, YvonnePhotoCaptureError, NULL);
+    gp_context_set_message_func(cam->ctx, YvonnePhotoCaptureMessage, NULL);
+
+    gp_camera_new(&cam->cam);
+//    gp_camera_set_abilities(priv->cam, cap);
+//    gp_camera_set_port_info(priv->cam, port);
 
     //This call will autodetect cameras, take the first one from the list and use it
     printf("Camera init. Can take more than 10 seconds depending on the "
     "memory card's contents (remove card from camera to speed up).\n");
-    int ret = gp_camera_init(camera, context);
+    int ret = gp_camera_init(cam->cam, cam->ctx);
     if (ret < GP_OK) {
         printf("No camera auto detected.\n");
-        gp_camera_free(camera);
-        return 1; //FIXME
+        gp_camera_free(cam->cam);
+        return ERROR_GENERIC;
     }
 
     return ERROR_NO;
 }
 
+
+
 /**
  *  YvonnePhotoCaptureUnref
  *  release libgphoto2 camera
- *  @Param : gphoto2 camera
- *  @Param : gphoto2 context
+ *  @Param : YvonneCamera struct to fill
  *  @Return : Yvonne Error Code
  */
-int YvonnePhotoCaptureUnref (Camera *camera, GPContext *context) {
+int YvonnePhotoCaptureUnref (YvonneCamera* cam) {
     // close camera
-    gp_camera_unref(camera);
-    gp_context_unref(context);
+    gp_camera_unref(cam->cam);
+    gp_context_unref(cam->ctx);
 
     return ERROR_NO;
 }
@@ -421,7 +425,7 @@ int YvonnePhotoCaptureUnref (Camera *camera, GPContext *context) {
  *  @Param : target file
  *  @Return : Yvonne error code
  */
-int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename) {
+int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
     int fd, retval;
     CameraFile *file;
     CameraFilePath camera_file_path;
@@ -432,7 +436,7 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
  //snprintf(camera_file_path.name, 128, "foo.jpg");
 
     // take a shot
-    retval = gp_camera_capture(camera, GP_CAPTURE_IMAGE, &camera_file_path, context);
+    retval = gp_camera_capture(cam->cam, GP_CAPTURE_IMAGE, &camera_file_path, cam->ctx);
 
     if (retval) {
         return ERROR_GENERIC;
@@ -452,8 +456,8 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
     }
 
     // copy picture from camera
-    retval = gp_camera_file_get(camera, camera_file_path.folder, camera_file_path.name,
-    GP_FILE_TYPE_NORMAL, file, context);
+    retval = gp_camera_file_get(cam->cam, camera_file_path.folder, camera_file_path.name,
+    GP_FILE_TYPE_NORMAL, file, cam->ctx);
 
     if (retval) {
         return ERROR_GENERIC;
@@ -462,8 +466,8 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
 
     printf("Deleting\n");
     // remove picture from camera memory
-    retval = gp_camera_file_delete(camera, camera_file_path.folder, camera_file_path.name,
-    context);
+    retval = gp_camera_file_delete(cam->cam, camera_file_path.folder, camera_file_path.name,
+    cam->ctx);
 
     if (retval) {
         return ERROR_GENERIC;
@@ -482,7 +486,7 @@ int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename
 
     printf("Wait for events from camera\n");
     while(1) {
-        retval = gp_camera_wait_for_event(camera, waittime, &type, &data, context);
+        retval = gp_camera_wait_for_event(cam->cam, waittime, &type, &data, cam->ctx);
         if(type == GP_EVENT_TIMEOUT) {
             break;
         }

@@ -58,7 +58,7 @@
 //TODO warning error print
 //TODO resume if log exist ?
 //TODO Video generation on the fly during capture 
-
+//TODO #define YVERR int
 //FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
 //FIXME camera setting unavailable - gphoto release cam between capture ?
 //FIXME configuration arduino pb !!! pb baud ?
@@ -109,9 +109,6 @@ int main(int argc, char** argv)
 
     char filesource	[256];
     char filetarget	[256];
-
-    Camera *gpcamera;
-    GPContext *gpcontext;
 
     char buf[CWD_MAXLENGHT];
     if (getcwd(buf, CWD_MAXLENGHT)) {
@@ -216,26 +213,11 @@ int main(int argc, char** argv)
         exit(ERROR_GENERIC);
     }
 
-//    YvonnePhotoCaptureInit(gpcamera, gpcontext);
+    YvonneCamera* camera = malloc(sizeof(YvonneCamera));
+    YvonnePhotoCaptureInit(camera);
 
-    gp_camera_new (&gpcamera);
-    gpcontext = gp_context_new();
-
-    // set callbacks for camera messages
-    gp_context_set_error_func(gpcontext, YvonnePhotoCaptureError, NULL);
-    gp_context_set_message_func(gpcontext, YvonnePhotoCaptureMessage, NULL);
-
-    //This call will autodetect cameras, take the first one from the list and use it
-    printf("Camera init. Can take more than 10 seconds depending on the "
-    "memory card's contents (remove card from camera to speed up).\n");
-    int ret = gp_camera_init(gpcamera, gpcontext);
-    if (ret < GP_OK) {
-        gp_camera_free(gpcamera);
-        printf(ANSI_COLOR_RED "No camera auto detected. Maybe check the battery ?\n" ANSI_COLOR_RESET);
-        goto CLOSE_ARDUINO; //FIXME goto
-    }
     //give other access to the camera
-    gp_camera_exit (gpcamera,gpcontext);
+    gp_camera_exit (camera->cam,camera->ctx);
     bool CameraExited = true;
 
     if(photoIndex == 0) {
@@ -263,70 +245,70 @@ int main(int argc, char** argv)
     unsigned int shootFailed = 0;
 
     //! here start the (interesting) work
-    while (!StateQuit && keepRunning) {
+  while (!StateQuit && keepRunning) {
     //Listen to the Arduino remote
     charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
 
     if (charReceived == -1 && errno == EAGAIN) {
-        if(!quiet) printf("Nothing to read from Arduino\n");
+      if(!quiet) printf("Nothing to read from Arduino\n");
     }
     else {
-        bufArduino[charReceived]='\0';
-        if(!quiet) printf("Arduino string readed : %s CaracteresRecus : %d\n", bufArduino, charReceived);
+      bufArduino[charReceived]='\0';
+      if(!quiet) printf("Arduino string readed : %s CaracteresRecus : %d\n", bufArduino, charReceived);
 
-        if (charReceived) {
-            StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
-            StateQuit = (strstr(bufArduino, "QUIT") ? 1 : 0);
+      if (charReceived) {
+        StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
+        StateQuit = (strstr(bufArduino, "QUIT") ? 1 : 0);
 //TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);
-            stopIndex = strstr_last(bufArduino, "STOP");
-            startIndex = strstr_last(bufArduino, "START");
+        stopIndex = strstr_last(bufArduino, "STOP");
+        startIndex = strstr_last(bufArduino, "START");
 
-            if (startIndex || stopIndex)
-                StateStop = (startIndex > stopIndex) ? 0 : 1;
+        if (startIndex || stopIndex)
+          StateStop = (startIndex > stopIndex) ? 0 : 1;
 
-            memset(bufArduino, '\0', charReceived);
-        }  
+        memset(bufArduino, '\0', charReceived);
+      }
     }
 
     //Generate current photo name
     sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
     //Print info to output
     if(!quiet || !StateStop)
-        printf(ANSI_COLOR_CYAN "current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
+      printf(ANSI_COLOR_CYAN "current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
 
     //For Video generation
     if (StateVideo)
     {
-        //resize the photo
-        //TODO change LOWQUALITY_DIRECTORY to command line parameter
-        //INFO -vframes n or -frames:v to control the quantity of frames
+      //resize the photo
+      //TODO change LOWQUALITY_DIRECTORY to command line parameter
+      //INFO -vframes n or -frames:v to control the quantity of frames
 
-        //INFO 25 f/s because all images are duplicated N time
-        sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);// FIXME snprintf
-        if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
-            printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
-        }
-        else {
-            printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
-            printf (ANSI_COLOR_GREEN "####                                              ####\n" ANSI_COLOR_RESET);
-            printf (ANSI_COLOR_GREEN "#### A fresh video will be available to be chewed ####\n" ANSI_COLOR_RESET);
-            printf (ANSI_COLOR_GREEN "#### ----> %s-%d.avi                   ####\n" ANSI_COLOR_RESET, sceneName, videoIndex);
-            printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
-        }
+      //INFO 25 f/s because all images are duplicated N time
+      sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);// FIXME snprintf
+      if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
+        printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
+      }
+      else {
+        printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
+        printf (ANSI_COLOR_GREEN "####                                              ####\n" ANSI_COLOR_RESET);
+        printf (ANSI_COLOR_GREEN "#### A fresh video will be available to be chewed ####\n" ANSI_COLOR_RESET);
+        printf (ANSI_COLOR_GREEN "#### ----> %s-%d.avi                   ####\n" ANSI_COLOR_RESET, sceneName, videoIndex);
+        printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
+      }
 
-        logLenght = sprintf(logMessage, "VIDEO %s-%d.avi : %d ---> %d (%d)\n", //FIXME snprintf
-                            sceneName,
-                            videoIndex,
-                            startSequence,
-                            sceneLowQualityIndex,
-                            photoIndex);
+      logLenght = sprintf(logMessage, "VIDEO %s-%d.avi : %d ---> %d (%d)\n", //FIXME snprintf
+                          sceneName,
+                          videoIndex,
+                          startSequence,
+                          sceneLowQualityIndex,
+                          photoIndex);
 
-        write(logDescriptor, logMessage, logLenght*sizeof(char));
+      write(logDescriptor, logMessage, logLenght*sizeof(char));
 
-        startSequence = sceneLowQualityIndex;
-        videoIndex++;
+      startSequence = sceneLowQualityIndex;
+      videoIndex++;
 
-        StateVideo = 0;
+      StateVideo = 0;
     }
 
     //Exit now!
@@ -337,15 +319,8 @@ int main(int argc, char** argv)
     {
       if(CameraExited) ; //FIXME will solve some ContextError ?
       //take the photo
-      //TODO use direclty libgphoto2?
-      //CURRENTPHOTO - sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename ./%s-%05d.jpg", shootingDelay, sceneName, photoIndex);
-      //IFDEF GPHOTOCMD
-    //      sprintf(commandLine, "gphoto2 --capture-image-and-download -F 1 -I %d --filename %s", shootingDelay, currentPhoto);
-    //      if (YvonneExecute ("capture", commandLine) != ERROR_NO)
-    //        printf(ANSI_COLOR_RED "ERROR during capture cmd line : %s" ANSI_COLOR_RESET, commandLine);//TODO do something better
-
       printf("Capturing to file %s\n", currentPhoto);
-      if(YvonnePhotoCapture(gpcamera, gpcontext, currentPhoto) == ERROR_NO){
+      if(YvonnePhotoCapture(camera, currentPhoto) == ERROR_NO){
         CameraExited = false;
         shootFailed = 0;
         sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
@@ -370,42 +345,39 @@ int main(int argc, char** argv)
         sleep(1);
         if(shootFailed >= MAX_SHOOT_RETRY_BEFORE_INIT){
           printf("Camera init again....\n");
-          int ret = gp_camera_init(gpcamera, gpcontext);
+          int ret = gp_camera_init(camera->cam, camera->ctx);
           if (ret < GP_OK) {
-              printf(ANSI_COLOR_RED "ERROR : No camera auto detected. Check battery maybe?\n" ANSI_COLOR_RESET);
-              gp_camera_free(gpcamera);
-              goto CLOSE_CAMERA;
+            printf(ANSI_COLOR_RED "ERROR : No camera auto detected. Check battery maybe?\n" ANSI_COLOR_RESET);
+            gp_camera_free(camera->cam);
+            goto CLOSE_CAMERA;
           }
         }
       }
     }
     else {
-      if(!CameraExited){
-        gp_camera_exit (gpcamera,gpcontext);
+      if(!CameraExited) {
+        gp_camera_exit (camera->cam,camera->ctx);
         CameraExited = true;
       }
       if(!quiet) printf("Shooting paused\n");
       sleep(3);
     }
     //    sleep(1);
-    }
+  }
 
 CLOSE_CAMERA:
-//FIXME
-//    YvonnePhotoCaptureUnref(gpcamera, gpcontext);
-    // close camera
-    gp_camera_unref(gpcamera);
-    gp_context_unref(gpcontext);
+  YvonnePhotoCaptureUnref(camera);
+  free(camera);
 
 CLOSE_ARDUINO:
-    YvonneArduinoClose(fdArduinoModem, &oldtio);
+  YvonneArduinoClose(fdArduinoModem, &oldtio);
 
 //CLOSE_LOG:
-    //close log
-    logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
-    write(logDescriptor, logMessage, logLenght*sizeof(char));
-    close(logDescriptor);
-    printf(ANSI_COLOR_CYAN "\nSuccessly close, see you next shot!\n" ANSI_COLOR_RESET);
-    exit(EXIT_SUCCESS);
+  //close log
+  logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
+  write(logDescriptor, logMessage, logLenght*sizeof(char));
+  close(logDescriptor);
+  printf(ANSI_COLOR_CYAN "\nSuccessly close, see you next shot!\n" ANSI_COLOR_RESET);
+  exit(EXIT_SUCCESS);
 }
 

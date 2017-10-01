@@ -30,6 +30,11 @@
 #include <wand/MagickWand.h>
 #include <gphoto2/gphoto2-camera.h>
 
+typedef struct _YvonneCamera {
+    GPContext *ctx;
+    Camera *cam;
+}YvonneCamera;
+
 int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio);
 void YvonneArduinoClose (int fd, struct termios* oldtio);
 int YvonneArduinoOpen (char* arduinoPort);
@@ -39,9 +44,9 @@ int YvonneExecuteForked (char* srtCommandName, char* strCommandLine);
 
 char* strstr_last (const char* str1, const char* str2);
 
-int YvonnePhotoCaptureInit (Camera *camera, GPContext *context);
-int YvonnePhotoCaptureUnref (Camera *camera, GPContext *context);
-int YvonnePhotoCapture (Camera *camera, GPContext *context, const char *filename);
+int YvonnePhotoCaptureInit (YvonneCamera* cam);
+int YvonnePhotoCaptureUnref (YvonneCamera* cam);
+int YvonnePhotoCapture (YvonneCamera* cam, const char *filename);
 void YvonnePhotoCaptureError (GPContext *context, const char *format, void *data);
 void YvonnePhotoCaptureMessage (GPContext *context, const char *format, void *data);
 
