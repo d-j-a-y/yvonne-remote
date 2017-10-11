@@ -47,7 +47,6 @@
 #define SERIAL_PORT_MAXLENGHT       80
 #define SCENE_NAME_MAXLENGHT        20
 #define LOG_MAXLENGHT               255
-#define CWD_MAXLENGHT               255
 
 #define FFMPEG_STATIC_BUILD_INSTALL "/usr/local/bin/"
 

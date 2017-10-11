@@ -39,6 +39,8 @@ int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio
 void YvonneArduinoClose (int fd, struct termios* oldtio);
 int YvonneArduinoOpen (char* arduinoPort);
 
+char* YvonneGetSceneName();
+
 int YvonneExecute (char* srtCommandName, char* strCommandLine);
 int YvonneExecuteForked (char* srtCommandName, char* strCommandLine);
 

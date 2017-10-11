@@ -208,6 +208,30 @@ void YvonneArduinoClose (int fd, struct termios* oldtio)
 }
 
 /**
+ *  YvonneGetSceneName
+ *  @return NULL terminates string
+ *
+ *  Return the scene name from the current directory. This function calls malloc(),
+ *  caller is responsible for freeing the memory.
+ */
+char* YvonneGetSceneName()
+{
+  char *currdir = NULL;
+  char *sceneName = NULL;
+
+  char *buf=NULL;
+  if ((buf = getcwd(NULL, 0))) {
+    currdir = strrchr(buf,'/')+1;
+    sceneName = malloc(strlen(currdir)*sizeof(char));
+    strcpy(sceneName, currdir);
+    free(buf);
+  }
+
+  return sceneName;
+}
+
+
+/**
  *  YvonneExecute
  *  @param strCommandName Name of the Command line to execute inside a shell
  *  @param strCommandLine Command line to execute inside a shell

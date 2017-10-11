@@ -104,24 +104,19 @@ int main(int argc, char** argv)
     char arduinoDeviceName[SERIAL_PORT_MAXLENGHT];
     strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);// FIXME strlcpy
 
-    char sceneName [SCENE_NAME_MAXLENGHT];
-    strcpy(sceneName,SCENE_DEFAULT_NAME); //TODO getcwd current dir // FIXME strlcpy
-
     char logMessage [LOG_MAXLENGHT];
     int logLenght = 0;
 
     char filesource	[256];
     char filetarget	[256];
 
-    char buf[CWD_MAXLENGHT];
-    if (getcwd(buf, CWD_MAXLENGHT)) {
-      printf("%s\n", buf);
-    }
-    else { //FIXME allocate ?
+    char *sceneName= YvonneGetSceneName();
+    if(!(sceneName)) {
       error(0, 0, ANSI_COLOR_RED "ERROR getting current working dir" ANSI_COLOR_RESET);
       perror("");
       exit(ERROR_GENERIC);
     }
+    printf("Scene name set to '%s'\n", sceneName);
 
     /* parse options */
     int option_index = 0, opt;
@@ -176,14 +171,10 @@ int main(int argc, char** argv)
                   if(!quiet) printf("Video numbering start from %d\n",videoIndex);
                 break;
             case 's':
-                if(strlen(optarg)+1 <= SCENE_NAME_MAXLENGHT) {
+                  free(sceneName);
+                  sceneName = malloc(strlen(optarg)*sizeof(char));
                   strcpy(sceneName, optarg);// FIXME strlcpy
-                  if(!quiet) printf("Scene name set to %s\n",sceneName);
-                }
-                else {
-                  error(0, 0, "Can't set Scene name to %s (scene name too long)\n",optarg);
-                  exit(ERROR_GENERIC);
-                }
+                  if(!quiet) printf("Scene name set to '%s'\n",sceneName);
                 break;
         }
     }
@@ -335,7 +326,7 @@ int main(int argc, char** argv)
           printf(ANSI_COLOR_RED "ERROR resizing image file %s\n" ANSI_COLOR_RESET, filesource);
 
         //duplicate the lowquality photo to slowdown the video rythm
-        int repeatEachImage = 5;
+        unsigned int repeatEachImage = 5;
         // TODO video fps control
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
           sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
@@ -381,6 +372,7 @@ CLOSE_LOG:
   logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
   write(logDescriptor, logMessage, logLenght*sizeof(char));
   close(logDescriptor);
+  free(sceneName);
   printf(ANSI_COLOR_CYAN "\nSuccessly close, see you next shot!\n" ANSI_COLOR_RESET);
   exit(EXIT_SUCCESS);
 }
