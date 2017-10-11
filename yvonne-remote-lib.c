@@ -23,12 +23,12 @@
 #include "yvonne-remote.h"
 #include "yvonne-remote-lib.h"
 
-// TODO error checking in InitArduinoConnection
-
 /**
- *   YvonneArduinoOpen
- *   @Param : strArduinoPort  ( /dev/ttyACM0 )
- *   @Return : Descripteur de fichier vers Arduino sinon ERROR_GENERIC
+ *  YvonneArduinoOpen
+ *  @param strArduinoPort  ( /dev/ttyACM0 )
+ *  @return Arduino Arduino file descriptor or ERROR_GENERIC
+ *
+ *  Open the connection with the Arduino
  */
 int YvonneArduinoOpen (char* strArduinoPort)
 {
@@ -49,11 +49,13 @@ because we don't want to get killed if linenoise sends CTRL-C.
 }
 
 /**
- *   YvonneArduinoInit
- *   @Param[in] iFileDescriptor , Descripteur de fichier
- *   @Param[in] baudrate , Baudrate (bps) of Arduino
- *   @Param[out] *oldtio , structure pour acceuillir ancienne valeur port
- *   @Return Yvonne Error Code
+ *  YvonneArduinoInit
+ *  @param iFileDescriptor Arduino file descriptor
+ *  @param baudrate Arduino baudrate (bps)
+ *  @param oldtio Connection parameters backup
+ *  @return ERROR_NO if ok
+ *
+ *  Set the connection parameters (speed, binary, stop flag...) of the Arduino
  */
 int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio)
 {
@@ -192,8 +194,10 @@ included by <termios.h> */
 
 /**
  *  YvonneArduinoClose
- *  @Param : fd, Descripteur de fichier de la connexion
- *  @Return :
+ *  @param fd Arduino file descriptor
+ *  @param oldtio Connection parameters to restore
+ *
+ *  Close the connection with the Arduino
  */
 void YvonneArduinoClose (int fd, struct termios* oldtio)
 {
@@ -204,10 +208,12 @@ void YvonneArduinoClose (int fd, struct termios* oldtio)
 }
 
 /**
- *  YvonneExecute : Execute the command line
- *  @Param : strCommandName, name of the Command line to execute inside a shell 
- *  @Param : strCommandLine, Command line to execute inside a shell
- *  @Return : Yvonne Error code
+ *  YvonneExecute
+ *  @param strCommandName Name of the Command line to execute inside a shell
+ *  @param strCommandLine Command line to execute inside a shell
+ *  @return ERROR_NO if ok, ERROR if the pipe can't be open //FIXME false true
+ *
+ *  Execute the command line
  */
 int YvonneExecute (char* strCommandName, char* strCommandLine)
 {
@@ -234,10 +240,12 @@ int YvonneExecute (char* strCommandName, char* strCommandLine)
 }
 
 /**
- *  YvonneExecuteForked : Execute the command line in a child process and exit
- *  @Param : strCommandName, name of the Command line to execute inside a shell  
- *  @Param : strCommandLine, Command line to execute inside a shell
- *  @Return : Yvonne Error code
+ *  YvonneExecuteForked
+ *  @param strCommandName, name of the Command line to execute inside a shell
+ *  @param strCommandLine, Command line to execute inside a shell
+ *  @return ERROR_NO if ok, ERROR if the pipe can't be open //FIXME false true
+ *
+ *  Execute the command line in a child process and exit
  */
 int YvonneExecuteForked (char* strCommandName, char* strCommandLine)
 {
@@ -272,10 +280,11 @@ int YvonneExecuteForked (char* strCommandName, char* strCommandLine)
 
 /**
  *  strstr_last
- *  locate the last substring
- *  @Param : where to find the substring
- *  @Param : the substring to find
- *  @Return : ptr to the last substring or NULL if not found
+ *  @param str1 The string to search in
+ *  @param str2 The substring to find
+ *  @return If substring found, pointer to the last substring. 0 if not found
+ *
+ *  Locate in a string the last occurence of substring
  */
 char* strstr_last (const char* str1, const char* str2)
 {
@@ -312,12 +321,13 @@ char* strstr_last (const char* str1, const char* str2)
 
 /**
  *  YvonnePhotoResize
- *  resize an image (code from imagickwand example)
- *  @Param : source file
- *  @Param : target file
- *  @Param : target widht
- *  @Param : target height
- *  @Return : ImagickWand Error Code
+ *  @param filesource File name to resize
+ *  @param filetarget Resized file name
+ *  @param width Target file width
+ *  @param height Target file height
+ *  @return ERROR_NO if ok, ERROR if the file can't be resized //FIXME false true
+ *
+ *  Resize an image to desired size (code from imagickwand example)
  */
 int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height){
 #define ThrowWandException(wand) \
@@ -372,41 +382,47 @@ int YvonnePhotoResize (char* filesource, char* filetarget, long width, long heig
 
 /**
  *  YvonnePhotoCaptureInit
- *  init libgphoto2 camera capture
- *  @Param : YvonneCamera struct to fill
- *  @Return : Yvonne Error Code
+ *  @param cam The camera
+ *  @return ERROR_NO if the camera is connected, ERROR code on error
+ *
+ *  Attempt to connect to and initialize the camera. This
+ *  may fail if the camera is in use by another application,
+ *  has gone to sleep or has been disconnected from the port.
+ *
+ *  This block execution of the caller until completion.
  */
-int YvonnePhotoCaptureInit (YvonneCamera* cam) {
-    cam->ctx = gp_context_new();
+int YvonnePhotoCaptureInit (YvonneCamera *cam) {
+  cam->ctx = gp_context_new();
 
-    // set callbacks for camera messages
-    gp_context_set_error_func(cam->ctx, YvonnePhotoCaptureError, NULL);
-    gp_context_set_message_func(cam->ctx, YvonnePhotoCaptureMessage, NULL);
+  // set callbacks for camera messages
+  gp_context_set_error_func(cam->ctx, YvonnePhotoCaptureError, NULL);
+  gp_context_set_message_func(cam->ctx, YvonnePhotoCaptureMessage, NULL);
 
-    gp_camera_new(&cam->cam);
+  gp_camera_new(&cam->cam);
 //    gp_camera_set_abilities(priv->cam, cap);
 //    gp_camera_set_port_info(priv->cam, port);
 
-    //This call will autodetect cameras, take the first one from the list and use it
-    printf("Camera init. Can take more than 10 seconds depending on the "
-    "memory card's contents (remove card from camera to speed up).\n");
-    int ret = gp_camera_init(cam->cam, cam->ctx);
-    if (ret < GP_OK) {
-        printf("No camera auto detected.\n");
-        gp_camera_free(cam->cam);
-        return ERROR_GENERIC;
-    }
+  //This call will autodetect cameras, take the first one from the list and use it
+  printf("Camera init. Can take more than 10 seconds depending on the "
+  "memory card's contents (remove card from camera to speed up).\n");
+  int ret = gp_camera_init(cam->cam, cam->ctx);
+  if (ret < GP_OK) {
+    gp_camera_unref(cam->cam);
+    printf("No camera auto detected.\n");
+    return ERROR_GENERIC;
+  }
 
-    return ERROR_NO;
+  return ERROR_NO;
 }
 
 
 
 /**
  *  YvonnePhotoCaptureUnref
- *  release libgphoto2 camera
- *  @Param : YvonneCamera struct to fill
- *  @Return : Yvonne Error Code
+ *  @param cam the camera
+ *  @return Always ERROR_NO
+ *
+ *  Release the camera
  */
 int YvonnePhotoCaptureUnref (YvonneCamera* cam) {
     // close camera
@@ -419,21 +435,17 @@ int YvonnePhotoCaptureUnref (YvonneCamera* cam) {
 
 /**
  *  YvonnePhotoCapture
- *  capture a photo from camera using libgphoto2 (code from http://sepharads.blogspot.de/2011/11/camera-tethered-capturing-using.html)
- *  @Param : gphoto2 camera
- *  @Param : gphoto2 context
- *  @Param : target file
- *  @Return : Yvonne error code
+ *  @param cam The camera
+ *  @param filemane The target file to capture the file in
+ *  @return ERROR_NO if everything fine. false if false // FIXME
+ *
+ *  Capture a photo from the camera and save it to a file
+ *  (code inspired http://sepharads.blogspot.de/2011/11/camera-tethered-capturing-using.html)
  */
 int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
     int fd, retval;
     CameraFile *file;
     CameraFilePath camera_file_path;
-
- // this was done in the libphoto2 example code, but doesn't seem to be necessary
- // NOP: This gets overridden in the library to /capt0000.jpg
- //snprintf(camera_file_path.folder, 1024, "/");
- //snprintf(camera_file_path.name, 128, "foo.jpg");
 
     // take a shot
     retval = gp_camera_capture(cam->cam, GP_CAPTURE_IMAGE, &camera_file_path, cam->ctx);
@@ -451,7 +463,7 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
     retval = gp_file_new_from_fd(&file, fd);
 
     if (retval) {
-        return ERROR_GENERIC;
+      return ERROR_GENERIC;
     //TODO error handling
     }
 
@@ -460,7 +472,8 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
     GP_FILE_TYPE_NORMAL, file, cam->ctx);
 
     if (retval) {
-        return ERROR_GENERIC;
+      gp_file_free(file);
+      return ERROR_GENERIC;
     //TODO error handling
     }
 
@@ -470,7 +483,8 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
     cam->ctx);
 
     if (retval) {
-        return ERROR_GENERIC;
+      gp_file_free(file);
+      return ERROR_GENERIC;
     //TODO error handling
     }
 
@@ -513,11 +527,11 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
 
 /**
  *  YvonnePhotoCaptureError
- *  capture a photo from camera using gphoto2 lib (code from http://sepharads.blogspot.de/2011/11/camera-tethered-capturing-using.html)
- *  @Param : FIXME
- *  @Param : gphoto2 context
- *  @Param : FIXME
- *  @Return : 
+ *  @param context The gphoto capture context
+ *  @param str Gphoto2 context
+ *  @param data
+ *
+ *  Gphoto2 error handler
  */
 void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
   fprintf  (stderr, "\n*** Contexterror ***              \n%s\n",str);
@@ -527,11 +541,11 @@ void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
 
 /**
  *  YvonnePhotoCaptureMessage
- *  capture a photo from camera using gphoto2 lib (code from http://sepharads.blogspot.de/2011/11/camera-tethered-capturing-using.html)
- *  @Param : gphoto2 camera
- *  @Param : FIXME
- *  @Param : FIXME
- *  @Return : 
+ *  @param context The gphoto capture context
+ *  @param str Gphoto2 context
+ *  @param data
+ *
+ *  Gphoto2 message handler
  */
 void YvonnePhotoCaptureMessage (GPContext *context, const char *str, void *data) {
   fprintf  (stderr, ANSI_COLOR_YELLOW "%s\n" ANSI_COLOR_RESET, str);

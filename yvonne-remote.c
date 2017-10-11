@@ -59,6 +59,9 @@
 //TODO resume if log exist ?
 //TODO Video generation on the fly during capture 
 //TODO #define YVERR int
+//TODO fix error label (goto) on the fly
+//TODO error checking in InitArduinoConnection
+
 //FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
 //FIXME camera setting unavailable - gphoto release cam between capture ?
 //FIXME configuration arduino pb !!! pb baud ?
@@ -112,12 +115,12 @@ int main(int argc, char** argv)
 
     char buf[CWD_MAXLENGHT];
     if (getcwd(buf, CWD_MAXLENGHT)) {
-        printf("%s\n", buf);
+      printf("%s\n", buf);
     }
     else { //FIXME allocate ?
-        error(0, 0, ANSI_COLOR_RED "ERROR get current working dir" ANSI_COLOR_RESET);
-        perror("");
-        exit(ERROR_GENERIC);
+      error(0, 0, ANSI_COLOR_RED "ERROR getting current working dir" ANSI_COLOR_RESET);
+      perror("");
+      exit(ERROR_GENERIC);
     }
 
     /* parse options */
@@ -178,7 +181,7 @@ int main(int argc, char** argv)
                   if(!quiet) printf("Scene name set to %s\n",sceneName);
                 }
                 else {
-                  error(0, 0, "Can't assign Scene name to %s (buffer lenght reached)\n",optarg);
+                  error(0, 0, "Can't set Scene name to %s (scene name too long)\n",optarg);
                   exit(ERROR_GENERIC);
                 }
                 break;
@@ -188,9 +191,9 @@ int main(int argc, char** argv)
     char logFile[]="yvonne.log";
     int logDescriptor;
     if ((logDescriptor=open(logFile, O_WRONLY|O_CREAT|O_EXCL, 0644)) == -1) {
-        error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
-        perror("");
-        exit(ERROR_GENERIC);
+      error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
+      perror("");
+      exit(ERROR_GENERIC);
     }
     logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);//FIXME snprintf
     write(logDescriptor, logMessage, logLenght*sizeof(char));
@@ -202,19 +205,22 @@ int main(int argc, char** argv)
     struct termios oldtio;
 
     if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
-        error(0, 0, ANSI_COLOR_RED "OpenArduinoConnection failed at %s"  ANSI_COLOR_RESET,arduinoDeviceName);
-        perror("");
-        exit(ERROR_GENERIC);
+      error(0, 0, ANSI_COLOR_RED "ERROR Can't connect to remote. Arduino connection failed at %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
+      perror("");
+      goto CLOSE_LOG;
     }
-    printf(ANSI_COLOR_CYAN "Arduino listen from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
+    printf(ANSI_COLOR_CYAN "Remote control open from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
 
     if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio)) {
-        perror("InitArduinoConnection failed!");
-        exit(ERROR_GENERIC);
+      error(0, 0, ANSI_COLOR_RED "ERROR Can't talk to remote. Arduino initialization failed\n" ANSI_COLOR_RESET);
+      perror("");
+      goto CLOSE_ARDUINO;
     }
 
     YvonneCamera* camera = malloc(sizeof(YvonneCamera));
-    YvonnePhotoCaptureInit(camera);
+    if(YvonnePhotoCaptureInit(camera) != ERROR_NO) {
+      goto CLOSE_CAMERA;
+    }
 
     //give other access to the camera
     gp_camera_exit (camera->cam,camera->ctx);
@@ -231,18 +237,18 @@ int main(int argc, char** argv)
 //TODO malloc?
 	char bufArduino[TEXTMAX];
 //TODO State Mask	
-    int StateStop = 1;
-    int StateVideo = 0;
-    int StateQuit = 0;
-    char commandLine[LINE_BUFFER];
-    char currentPhoto[TEXTMAX_PHOTO];
+  int StateStop = 1;
+  int StateVideo = 0;
+  int StateQuit = 0;
+  char commandLine[LINE_BUFFER];
+  char currentPhoto[TEXTMAX_PHOTO];
 
-    int sceneLowQualityIndex = 1;
+  int sceneLowQualityIndex = 1;
 
-    char* stopIndex = 0;
-    char* startIndex = 0;
+  char* stopIndex = 0;
+  char* startIndex = 0;
 
-    unsigned int shootFailed = 0;
+  unsigned int shootFailed = 0;
 
     //! here start the (interesting) work
   while (!StateQuit && keepRunning) {
@@ -254,7 +260,7 @@ int main(int argc, char** argv)
     }
     else {
       bufArduino[charReceived]='\0';
-      if(!quiet) printf("Arduino string readed : %s CaracteresRecus : %d\n", bufArduino, charReceived);
+      if(!quiet) printf("Arduino string readed : %s\n", bufArduino);
 
       if (charReceived) {
         StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
@@ -274,7 +280,7 @@ int main(int argc, char** argv)
     sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
     //Print info to output
     if(!quiet || !StateStop)
-      printf(ANSI_COLOR_CYAN "current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
+      printf(ANSI_COLOR_CYAN "Current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
 
     //For Video generation
     if (StateVideo)
@@ -296,7 +302,7 @@ int main(int argc, char** argv)
         printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
       }
 
-      logLenght = sprintf(logMessage, "VIDEO %s-%d.avi : %d ---> %d (%d)\n", //FIXME snprintf
+      logLenght = sprintf(logMessage, "VIDEO %s-%.3d.avi : %d ---> %d (%d)\n", //FIXME snprintf
                           sceneName,
                           videoIndex,
                           startSequence,
@@ -326,7 +332,7 @@ int main(int argc, char** argv)
         sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
 
         if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-          printf(ANSI_COLOR_RED "ERROR resizing file %s\n" ANSI_COLOR_RESET, filesource);
+          printf(ANSI_COLOR_RED "ERROR resizing image file %s\n" ANSI_COLOR_RESET, filesource);
 
         //duplicate the lowquality photo to slowdown the video rythm
         int repeatEachImage = 5;
@@ -334,21 +340,20 @@ int main(int argc, char** argv)
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
           sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
           if(link(filesource, filetarget)!=0) {
-            printf(ANSI_COLOR_RED "ERROR linking files\n" ANSI_COLOR_RESET);
+            printf(ANSI_COLOR_RED "ERROR linking images files\n" ANSI_COLOR_RESET);
             perror("");
           }
         }
         photoIndex++;
       }
       else {
-        printf(ANSI_COLOR_YELLOW "Photo %s shoot has failed %d time(s).\n"  ANSI_COLOR_RESET, currentPhoto, ++shootFailed);
+        printf(ANSI_COLOR_YELLOW "WARNING Photo %s shoot has failed %d time(s)\n"  ANSI_COLOR_RESET, currentPhoto, ++shootFailed);
         sleep(1);
         if(shootFailed >= MAX_SHOOT_RETRY_BEFORE_INIT){
           printf("Camera init again....\n");
           int ret = gp_camera_init(camera->cam, camera->ctx);
           if (ret < GP_OK) {
-            printf(ANSI_COLOR_RED "ERROR : No camera auto detected. Check battery maybe?\n" ANSI_COLOR_RESET);
-            gp_camera_free(camera->cam);
+            printf(ANSI_COLOR_RED "ERROR no camera auto detected. Check battery maybe?\n" ANSI_COLOR_RESET);
             goto CLOSE_CAMERA;
           }
         }
@@ -372,8 +377,7 @@ CLOSE_CAMERA:
 CLOSE_ARDUINO:
   YvonneArduinoClose(fdArduinoModem, &oldtio);
 
-//CLOSE_LOG:
-  //close log
+CLOSE_LOG:
   logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
   write(logDescriptor, logMessage, logLenght*sizeof(char));
   close(logDescriptor);
