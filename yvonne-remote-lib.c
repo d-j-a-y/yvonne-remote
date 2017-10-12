@@ -39,7 +39,7 @@ Open modem device for reading and writing and not as controlling tty
 because we don't want to get killed if linenoise sends CTRL-C.
 */
 //    fd = open(strArduinoPort, O_RDONLY | O_NOCTTY | O_NDELAY);
-  fd = open(strArduinoPort, O_RDWR | O_NONBLOCK);
+  fd = open(strArduinoPort, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
     perror("OpenArduinoConnection : ");
     return ERROR_GENERIC;
@@ -50,146 +50,86 @@ because we don't want to get killed if linenoise sends CTRL-C.
 
 /**
  *  YvonneArduinoInit
- *  @param iFileDescriptor Arduino file descriptor
+ *  @param fd Arduino file descriptor
  *  @param baudrate Arduino baudrate (bps)
  *  @param oldtio Connection parameters backup
  *  @return ERROR_NO if ok
  *
  *  Set the connection parameters (speed, binary, stop flag...) of the Arduino
  */
-int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio)
+int YvonneArduinoInit (int fd, int baudrate, struct termios* oldtio)
 {
-    struct termios newtio;
+  struct termios newtio;
 
-    tcgetattr(iFileDescriptor,oldtio); /* save current serial port settings */
-    tcgetattr(iFileDescriptor,&newtio); /* save current serial port settings */    
-    //bzero(&newtio, sizeof(newtio)); /* clear struct for new port settings */
+  tcgetattr(fd,oldtio); // Save current serial port settings
+  bzero(&newtio, sizeof(newtio)); // Clear struct for new port settings
 
-//    speed_t brate = BAUDRATE;
-//    cfsetispeed(&newtio, brate);
-//    cfsetospeed(&newtio, brate);    
+  /*
+  BAUDRATE: Set bps rate. You could also use cfsetispeed and cfsetospeed.
+  CRTSCTS : output hardware flow control (only used if the cable has
+          all necessary lines. See sect. 7 of Serial-HOWTO)
+  CS8     : 8n1 (8bit,no parity,1 stopbit) : Arduino default
+  CS7     : 7n1 (7bit,no parity,1 stopbit)
+  CLOCAL  : local connection, no modem contol
+  CREAD   : enable receiving characters
+  */
 
-    /*
-    BAUDRATE: Set bps rate. You could also use cfsetispeed and cfsetospeed.
-    CRTSCTS : output hardware flow control (only used if the cable has
-            all necessary lines. See sect. 7 of Serial-HOWTO)
-    CS8     : 8n1 (8bit,no parity,1 stopbit) : Arduino default
-    CS7     : 7n1 (7bit,no parity,1 stopbit)
-    CLOCAL  : local connection, no modem contol
-    CREAD   : enable receiving characters
-    */
-//    newtio.c_cflag = BAUDRATE | CS8 | CLOCAL | CREAD;    
-	  /* Parité desactivé. */
-//	  newtio.c_cflag &= PARENB;
-
-	  newtio.c_cflag &= ~PARENB;
-    /* 1 bits de stop. */
-//    newtio.c_cflag &= CSTOPB;
-
-    newtio.c_cflag &= ~CSTOPB;
-    newtio.c_cflag &= ~CSIZE;    
-    /* 2 bits de stop. */
-    //newtio.c_cflag |= CSTOPB;
+  // No parity (8N1) Arduino default
+  newtio.c_cflag &= ~PARENB;  //No parity bit
+  newtio.c_cflag &= ~CSTOPB;  //1 stop bit
+  newtio.c_cflag &= ~CSIZE;   //No bit mask for data bits
+  newtio.c_cflag |= CS8;      //8 data bits
 
 /* baudrate settings are defined in <asm/termbits.h>, which is
 included by <termios.h> */    
-    speed_t brate = baudrate; // let you override switch below if needed
-    switch(baudrate) {
-    case 4800:   brate=B4800;   break;
-    case 9600:   brate=B9600;   break;
+  speed_t brate = baudrate; // let you override switch below if needed
+  switch(baudrate) {
+  case 4800:   brate=B4800;   break;
+  case 9600:   brate=B9600;   break;
 #ifdef B14400
-    case 14400:  brate=B14400;  break;
+  case 14400:  brate=B14400;  break;
 #endif
-    case 19200:  brate=B19200;  break;
+  case 19200:  brate=B19200;  break;
 #ifdef B28800
-    case 28800:  brate=B28800;  break;
+  case 28800:  brate=B28800;  break;
 #endif
-    case 38400:  brate=B38400;  break;
-    case 57600:  brate=B57600;  break;
-    case 115200: brate=B115200; break;
-    }
-    newtio.c_cflag |= brate | CS8;
-    //no flow control
-    newtio.c_cflag &= ~CRTSCTS;
-    //disable auto reset
-    //newtio.c_cflag &= ~HUPCL; // not effectiv
-    newtio.c_cflag |= CLOCAL | CREAD;
+  case 38400:  brate=B38400;  break;
+  case 57600:  brate=B57600;  break;
+  case 115200: brate=B115200; break;
+  }
+  newtio.c_cflag |= brate;
 
-    /*
-    IGNPAR  : ignore bytes with parity errors
-    ICRNL   : map CR to NL (otherwise a CR input on the other computer
-            will not terminate input)
-    otherwise make device raw (no other input processing)
-    */
-//    newtio.c_iflag = INPCK | ICRNL;
-//    newtio.c_iflag = IGNPAR;
-    newtio.c_iflag &= ~(IXON | IXOFF | IXANY);
-    /*
-     Raw output.
-    */
-     newtio.c_oflag &= ~OPOST;
+  newtio.c_cflag &= ~CRTSCTS; //No flow control
+  newtio.c_cflag |= CLOCAL; //Local line - do not change "owner" of port
+  newtio.c_cflag |= CREAD; //Enable receiver
 
-    /*
-      ICANON  : enable canonical input
-      disable all echo functionality, and don't send signals to calling program
-    */
-//     newtio.c_lflag = ICANON;
-     //newtio.c_lflag = 0;
-    newtio.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
-    /*
-      initialize all control characters
-      default values can be found in /usr/include/termios.h, and are given
-      in the comments, but we don't need them here
-    */
-//     newtio.c_cc[VINTR]    = 0;     /* Ctrl-c */
-//     newtio.c_cc[VQUIT]    = 0;     /* Ctrl-\ */
-//     newtio.c_cc[VERASE]   = 0;     /* del */
-//     newtio.c_cc[VKILL]    = 0;     /* @ */
-//     newtio.c_cc[VEOF]     = 4;     /* Ctrl-d */
-     newtio.c_cc[VTIME]    = 0;     /* inter-character timer unused */
+  //Disable software flow control (outgoing)
+  //Disable software flow control (incoming)
+  //Forbib any character to start flow again
+  newtio.c_iflag &= ~(IXON | IXOFF | IXANY);
 
-     newtio.c_cc[VMIN]     = 0;     /* blocking read until 1 character arrives */
-     //newtio.c_cc[VMIN]     = 1;     /* blocking read until 1 character arrives */
+  newtio.c_oflag &= ~OPOST; //Raw output
 
-//     newtio.c_cc[VSWTC]    = 0;     /* '\0' */
-//     newtio.c_cc[VSTART]   = 0;     /* Ctrl-q */
-//     newtio.c_cc[VSTOP]    = 0;     /* Ctrl-s */
-//     newtio.c_cc[VSUSP]    = 0;     /* Ctrl-z */
-//     newtio.c_cc[VEOL]     = 0;     /* '\0' */
-//     newtio.c_cc[VREPRINT] = 0;     /* Ctrl-r */
-//     newtio.c_cc[VDISCARD] = 0;     /* Ctrl-u */
-//     newtio.c_cc[VWERASE]  = 0;     /* Ctrl-w */
-//     newtio.c_cc[VLNEXT]   = 0;     /* Ctrl-v */
-//     newtio.c_cc[VEOL2]    = 0;     /* '\0' */
+  //Disable canonical input : raw
+  //Disable echoing of input characters
+  //Disable Echo erase character as BS-SP-BS
+  //Disable SIGINTR, SIGSUSP, SIGDSUSP, and SIGQUIT signals
+  newtio.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 
-    tcsetattr(iFileDescriptor,TCSANOW,&newtio);
+  newtio.c_cc[VTIME]    = 0;  //Don't wait for data
+  newtio.c_cc[VMIN]     = 0;  //No blocking read
 
-    //! Wait a little before flushing the line
-    usleep(200000);
-    /*
-    now clean the modem line and activate the settings for the port
-    */
-    tcflush(iFileDescriptor, TCIOFLUSH);
-    
-//    tcsetattr(iFileDescriptor,TCSAFLUSH,&newtio);    //TODO Test
-/*
-    int status;
-    if(ioctl(iFileDescriptor, TIOCMGET, &status) == -1)
-    {
-        perror("pb dans get status");
-        return ERROR_GENERIC;
-    }
+  if (tcsetattr(fd,TCSANOW,&newtio) == -1){
+    perror("Error setting serial attributes : ");
+    return ERROR_GENERIC;
+  }
 
-    status |= TIOCM_DTR;
-    status |= TIOCM_RTS;
+  // Wait a little before flushing the line
+  usleep(200000);
+  // Now clean the modem line and activate the settings for the port
+  tcflush(fd, TCIOFLUSH);
 
-    if(ioctl(iFileDescriptor, TIOCMSET, &status) == -1)
-    {
-        perror("pb dans set status");
-        return ERROR_GENERIC;
-    }
-*/
-    return ERROR_NO;
+  return ERROR_NO;
 }
 
 /**

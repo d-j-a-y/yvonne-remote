@@ -202,7 +202,7 @@ int main(int argc, char** argv)
     }
     printf(ANSI_COLOR_CYAN "Remote control open from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
 
-    if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio)) {
+    if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio) != ERROR_NO) {
       error(0, 0, ANSI_COLOR_RED "ERROR Can't talk to remote. Arduino initialization failed\n" ANSI_COLOR_RESET);
       perror("");
       goto CLOSE_ARDUINO;
@@ -246,7 +246,7 @@ int main(int argc, char** argv)
     //Listen to the Arduino remote
     charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
 
-    if (charReceived == -1 && errno == EAGAIN) {
+    if (charReceived <= 0 && errno == EAGAIN) {
       if(!quiet) printf("Nothing to read from Arduino\n");
     }
     else {
