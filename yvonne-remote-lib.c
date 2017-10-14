@@ -41,7 +41,6 @@ because we don't want to get killed if linenoise sends CTRL-C.
 //    fd = open(strArduinoPort, O_RDONLY | O_NOCTTY | O_NDELAY);
   fd = open(strArduinoPort, O_RDONLY | O_NONBLOCK);
   if(fd < 0) {
-    perror("OpenArduinoConnection : ");
     return ERROR_GENERIC;
   }
 
@@ -367,11 +366,10 @@ int YvonnePhotoCaptureInit (YvonneCamera *cam) {
 //    gp_camera_set_port_info(priv->cam, port);
 
   //This call will autodetect cameras, take the first one from the list and use it
-  printf("Camera init. Can take more than 10 seconds depending on the "
-  "memory card's contents (remove card from camera to speed up).\n");
+  YvonnePrint(YVONNE_MSG_INFO,"Camera init. Can take more than 10 seconds depending on the "
+  "memory card's contents (remove card from camera to speed up).");
   int ret = gp_camera_init(cam->cam, cam->ctx);
   if (ret < GP_OK) {
-    gp_camera_unref(cam->cam);
     printf("No camera auto detected.\n");
     return ERROR_GENERIC;
   }
@@ -389,11 +387,10 @@ int YvonnePhotoCaptureInit (YvonneCamera *cam) {
  *  Release the camera
  */
 int YvonnePhotoCaptureUnref (YvonneCamera* cam) {
-    // close camera
-    gp_camera_unref(cam->cam);
-    gp_context_unref(cam->ctx);
-
-    return ERROR_NO;
+  // close camera
+  gp_camera_unref(cam->cam);
+  gp_context_unref(cam->ctx);
+  return ERROR_NO;
 }
 
 
@@ -498,8 +495,7 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
  *  Gphoto2 error handler
  */
 void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
-  fprintf  (stderr, "\n*** Contexterror ***              \n%s\n",str);
-  fflush   (stderr);
+  YvonnePrint(YVONNE_MSG_ERROR, "\n*** Contexterror ***\n%s", str);
   //keepRunning = false;
 }
 
@@ -514,4 +510,28 @@ void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
 void YvonnePhotoCaptureMessage (GPContext *context, const char *str, void *data) {
   fprintf  (stderr, ANSI_COLOR_YELLOW "%s\n" ANSI_COLOR_RESET, str);
   fflush   (stderr);
+}
+
+void YvonnePrint(int messageType, char* message, ...) {
+  char buf[1024];
+  va_list args;
+  // parse arguments
+  va_start(args, message);
+  vsnprintf(buf, sizeof(buf) - 1, message, args);
+  char *errorColor;
+  switch(messageType) {
+    case YVONNE_MSG_ERROR:
+      errorColor = ANSI_COLOR_RED;
+    break;
+    case YVONNE_MSG_WARNING:
+      errorColor = ANSI_COLOR_YELLOW;
+    break;
+    case YVONNE_MSG_INFO:
+      errorColor = ANSI_COLOR_CYAN;
+    break;
+    default:
+      errorColor = ANSI_COLOR_RESET;
+  }
+  fprintf( stdout, "%s%s%s\n", errorColor, buf, ANSI_COLOR_RESET );
+  va_end(args);
 }

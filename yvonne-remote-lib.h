@@ -30,6 +30,10 @@
 #include <wand/MagickWand.h>
 #include <gphoto2/gphoto2-camera.h>
 
+#define YVONNE_MSG_ERROR 0
+#define YVONNE_MSG_WARNING 1
+#define YVONNE_MSG_INFO 2
+
 typedef struct _YvonneCamera {
     GPContext *ctx;
     Camera *cam;
@@ -53,6 +57,8 @@ void YvonnePhotoCaptureError (GPContext *context, const char *format, void *data
 void YvonnePhotoCaptureMessage (GPContext *context, const char *format, void *data);
 
 int YvonnePhotoResize (char* filesource, char* filetarget, long width, long height);
+
+void YvonnePrint(int msgType, char* message, ...);
 
 #endif //__YVONNEREMOTELIB__
 

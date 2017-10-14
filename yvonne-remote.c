@@ -54,13 +54,9 @@
 //TODO autoselect ffmpeg/avconv / + perso install (ffmpeg static install (from http://ffmpeg.gusari.org/static/))
 //TODO test de presence d'un appareil photo
 //TODO video fps option
-//TODO void print_error(const char * errorstr,...) {printf(ANSI_COLOR_RED errorstr ANSI_COLOR_RESET
-//TODO warning error print
 //TODO resume if log exist ?
 //TODO Video generation on the fly during capture 
-//TODO #define YVERR int
 //TODO fix error label (goto) on the fly
-//TODO error checking in InitArduinoConnection
 
 //FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
 //FIXME camera setting unavailable - gphoto release cam between capture ?
@@ -112,7 +108,7 @@ int main(int argc, char** argv)
 
     char *sceneName= YvonneGetSceneName();
     if(!(sceneName)) {
-      error(0, 0, ANSI_COLOR_RED "ERROR getting current working dir" ANSI_COLOR_RESET);
+      error(0, 0, ANSI_COLOR_RED "Can't get current working dir" ANSI_COLOR_RESET);
       perror("");
       exit(ERROR_GENERIC);
     }
@@ -182,9 +178,9 @@ int main(int argc, char** argv)
     char logFile[]="yvonne.log";
     int logDescriptor;
     if ((logDescriptor=open(logFile, O_WRONLY|O_CREAT|O_EXCL, 0644)) == -1) {
-      error(0, 0, ANSI_COLOR_RED "ERROR can't create logfile \"%s\"" ANSI_COLOR_RESET,logFile);
+      YvonnePrint(YVONNE_MSG_ERROR, "Can't create logfile \"%s\"", logFile);
       perror("");
-      exit(ERROR_GENERIC);
+      goto CLOSE_SCENE_NAME;
     }
     logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);//FIXME snprintf
     write(logDescriptor, logMessage, logLenght*sizeof(char));
@@ -196,14 +192,14 @@ int main(int argc, char** argv)
     struct termios oldtio;
 
     if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
-      error(0, 0, ANSI_COLOR_RED "ERROR Can't connect to remote. Arduino connection failed at %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
+      YvonnePrint(YVONNE_MSG_ERROR, "Can't connect to remote. Arduino connection failed at %s", arduinoDeviceName);
       perror("");
       goto CLOSE_LOG;
     }
     printf(ANSI_COLOR_CYAN "Remote control open from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
 
     if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio) != ERROR_NO) {
-      error(0, 0, ANSI_COLOR_RED "ERROR Can't talk to remote. Arduino initialization failed\n" ANSI_COLOR_RESET);
+      YvonnePrint(YVONNE_MSG_ERROR, "Can't talk to remote. Arduino initialization failed");
       perror("");
       goto CLOSE_ARDUINO;
     }
@@ -240,18 +236,21 @@ int main(int argc, char** argv)
   char* startIndex = 0;
 
   unsigned int shootFailed = 0;
+  
+  //Generate current photo name
+  sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
 
     //! here start the (interesting) work
   while (!StateQuit && keepRunning) {
     //Listen to the Arduino remote
     charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
 
-    if (charReceived <= 0 && errno == EAGAIN) {
+    if (charReceived == 0 || (charReceived == -1 && errno == EAGAIN)) {
       if(!quiet) printf("Nothing to read from Arduino\n");
     }
     else {
       bufArduino[charReceived]='\0';
-      if(!quiet) printf("Arduino string readed : %s\n", bufArduino);
+      if(!quiet) printf("Arduino string readed : %s - %d\n", bufArduino, charReceived);
 
       if (charReceived) {
         StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
@@ -267,12 +266,6 @@ int main(int argc, char** argv)
       }
     }
 
-    //Generate current photo name
-    sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
-    //Print info to output
-    if(!quiet || !StateStop)
-      printf(ANSI_COLOR_CYAN "Current photo : %s \n" ANSI_COLOR_RESET, currentPhoto);
-
     //For Video generation
     if (StateVideo)
     {
@@ -283,7 +276,7 @@ int main(int argc, char** argv)
       //INFO 25 f/s because all images are duplicated N time
       sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);// FIXME snprintf
       if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
-        printf(ANSI_COLOR_RED "ERROR during video generation cmd line : %s \n" ANSI_COLOR_RESET, commandLine);//TODO do something better
+        YvonnePrint(YVONNE_MSG_ERROR, "ERROR during video generation cmd line : %s", commandLine);
       }
       else {
         printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
@@ -308,6 +301,8 @@ int main(int argc, char** argv)
       StateVideo = 0;
     }
 
+    YvonnePrint(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto);
+
     //Exit now!
     if(StateQuit || !keepRunning) continue;
 
@@ -316,14 +311,14 @@ int main(int argc, char** argv)
     {
       if(CameraExited) ; //FIXME will solve some ContextError ?
       //take the photo
-      printf("Capturing to file %s\n", currentPhoto);
+      if(!quiet) printf("Capturing to file %s\n", currentPhoto);
       if(YvonnePhotoCapture(camera, currentPhoto) == ERROR_NO){
         CameraExited = false;
         shootFailed = 0;
         sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
 
         if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-          printf(ANSI_COLOR_RED "ERROR resizing image file %s\n" ANSI_COLOR_RESET, filesource);
+          YvonnePrint(YVONNE_MSG_ERROR, "ERROR resizing image file %s", filesource);
 
         //duplicate the lowquality photo to slowdown the video rythm
         unsigned int repeatEachImage = 5;
@@ -331,20 +326,22 @@ int main(int argc, char** argv)
         for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
           sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
           if(link(filesource, filetarget)!=0) {
-            printf(ANSI_COLOR_RED "ERROR linking images files\n" ANSI_COLOR_RESET);
+            YvonnePrint(YVONNE_MSG_ERROR, "ERROR linking images files");
             perror("");
           }
         }
         photoIndex++;
+        //Generate current photo name
+        sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
       }
       else {
-        printf(ANSI_COLOR_YELLOW "WARNING Photo %s shoot has failed %d time(s)\n"  ANSI_COLOR_RESET, currentPhoto, ++shootFailed);
+        YvonnePrint(YVONNE_MSG_WARNING, "Photo %s shoot has failed %d time(s)", currentPhoto, ++shootFailed);
         sleep(1);
         if(shootFailed >= MAX_SHOOT_RETRY_BEFORE_INIT){
           printf("Camera init again....\n");
           int ret = gp_camera_init(camera->cam, camera->ctx);
           if (ret < GP_OK) {
-            printf(ANSI_COLOR_RED "ERROR no camera auto detected. Check battery maybe?\n" ANSI_COLOR_RESET);
+            YvonnePrint(YVONNE_MSG_ERROR, "ERROR no camera auto detected. Check battery maybe?");
             goto CLOSE_CAMERA;
           }
         }
@@ -372,8 +369,10 @@ CLOSE_LOG:
   logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
   write(logDescriptor, logMessage, logLenght*sizeof(char));
   close(logDescriptor);
+
+CLOSE_SCENE_NAME:
   free(sceneName);
-  printf(ANSI_COLOR_CYAN "\nSuccessly close, see you next shot!\n" ANSI_COLOR_RESET);
+  YvonnePrint(YVONNE_MSG_INFO,"\nSuccessly close, see you next shot!");
   exit(EXIT_SUCCESS);
 }
 
