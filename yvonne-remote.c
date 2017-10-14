@@ -336,14 +336,12 @@ int main(int argc, char** argv)
       }
       else {
         YvonnePrint(YVONNE_MSG_WARNING, "Photo %s shoot has failed %d time(s)", currentPhoto, ++shootFailed);
-        sleep(1);
-        if(shootFailed >= MAX_SHOOT_RETRY_BEFORE_INIT){
-          printf("Camera init again....\n");
-          int ret = gp_camera_init(camera->cam, camera->ctx);
-          if (ret < GP_OK) {
-            YvonnePrint(YVONNE_MSG_ERROR, "ERROR no camera auto detected. Check battery maybe?");
+        sleep(4);
+        printf("Camera init again....\n");
+        YvonnePhotoCaptureUnref(camera);
+        if((YvonnePhotoCaptureInit(camera) != ERROR_NO) && (shootFailed >= CAMERA_INIT_ATTEMPT_MAX)) {
+            YvonnePrint(YVONNE_MSG_ERROR, "No camera auto detected. Check battery maybe?");
             goto CLOSE_CAMERA;
-          }
         }
       }
     }
