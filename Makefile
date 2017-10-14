@@ -4,6 +4,8 @@
 TARGET = yvonne-remote
 OBJECTS = yvonne-remote.o yvonne-remote-lib.o
 
+VERSIONFILE = installed.version
+
 CFLAGS = -O2 -Wall -g
 CFLAGS += `pkg-config --cflags MagickWand`
 CFLAGS += `pkg-config --cflags libgphoto2`
@@ -32,7 +34,9 @@ clean:
 # install the project
 install:
 	cp $(TARGET) $(bindir)
+	git log -1 --abbrev-commit --pretty=oneline > $(VERSIONFILE)
 
 #unsintall the project
 uninstall:
 	$(RM) $(bindir)/$(TARGET)
+	rm -f $(VERSIONFILE)
