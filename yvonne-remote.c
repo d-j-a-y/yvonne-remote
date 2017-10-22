@@ -49,21 +49,6 @@
 #include <stdbool.h>
 #include <signal.h>
 
-//TODO dossier basse qualité Has option
-//TODO qualité basse qualité Has option
-//TODO autoselect ffmpeg/avconv / + perso install (ffmpeg static install (from http://ffmpeg.gusari.org/static/))
-//TODO test de presence d'un appareil photo
-//TODO video fps option
-//TODO resume if log exist ?
-//TODO Video generation on the fly during capture 
-//TODO fix error label (goto) on the fly
-
-//FIXME low battery programme hang ! ??? ---> STATE STOP +++ WARNING !!!!
-//FIXME camera setting unavailable - gphoto release cam between capture ?
-//FIXME configuration arduino pb !!! pb baud ?
-//FIXME : en reprise (-f -v) la premiere video genere contient des anciennes images : pour reproduire, faire un shooting normal (20f) et 3 video. puis stop puis reprise -f 21 - v 4 , 
-
-
 void usage(void)
 {
     printf("Usage: yvonne-remote [OPTIONS]\n"
