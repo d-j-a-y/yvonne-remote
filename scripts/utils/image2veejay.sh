@@ -35,6 +35,9 @@ framerepeat=5
 
 #TODO ratio option
 
+#TODO all dir : find -type d -exec ~/Sources/yvonne-remote/scripts/utils/image2veejay.sh -d '{}' \;
+
+
 usage ()
 {
 echo "---------------------------------------"
