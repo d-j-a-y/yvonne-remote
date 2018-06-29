@@ -81,6 +81,7 @@ int main(int argc, char** argv)
     char quiet=0;
     int shootingDelay = SHOOTING_DEFAULT_DELAY;
     int photoIndex = 0;
+    int sceneLowQualityIndex = 1;
     int videoIndex = 1;
     char arduinoDeviceName[SERIAL_PORT_MAXLENGHT];
     strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);// FIXME strlcpy
@@ -145,6 +146,7 @@ int main(int argc, char** argv)
                 break;
             case 'f':
                   photoIndex = strtol(optarg,NULL,10);
+                  sceneLowQualityIndex = 1 + (photoIndex * LOWQUALITY_REPEAT);
                   if(!quiet) printf("Scene numbering start from %d\n",photoIndex);
                 break;
             case 'v':
@@ -214,8 +216,6 @@ int main(int argc, char** argv)
   int StateQuit = 0;
   char commandLine[LINE_BUFFER];
   char currentPhoto[TEXTMAX_PHOTO];
-
-  int sceneLowQualityIndex = 1;
 
   char* stopIndex = 0;
   char* startIndex = 0;
@@ -306,9 +306,9 @@ int main(int argc, char** argv)
           YvonnePrint(YVONNE_MSG_ERROR, "ERROR resizing image file %s", filesource);
 
         //duplicate the lowquality photo to slowdown the video rythm
-        unsigned int repeatEachImage = 5;
+        unsigned int repeatEachImage;
         // TODO video fps control
-        for (repeatEachImage = 5; repeatEachImage > 0 ; repeatEachImage--) {
+        for (repeatEachImage = LOWQUALITY_REPEAT; repeatEachImage > 0 ; repeatEachImage--) {
           sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
           if(link(filesource, filetarget)!=0) {
             YvonnePrint(YVONNE_MSG_ERROR, "ERROR linking images files");

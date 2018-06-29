@@ -55,6 +55,7 @@
 #define LOWQUALITY_RESOLUTION         "1024x576"
 #define LOWQUALITY_RESOLUTION_W       1024
 #define LOWQUALITY_RESOLUTION_H       576
+#define LOWQUALITY_REPEAT             5
 
 #define CAMERA_INIT_ATTEMPT_MAX       30
 
