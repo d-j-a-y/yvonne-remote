@@ -11,7 +11,7 @@
 #######################################################
 
 
-version=170729
+version=181017
 typefile=JPG
 resolusionvideo=1024x576
 framerepeat=5
@@ -215,14 +215,17 @@ eval "$videoconvertion"
 #$staticffmpeginstall/ffmpeg -f image2 -r 25 -i ${target}/image-%04d.jpg -q:v 1 -vcodec mjpeg  -pix_fmt yuvj422p -s $resolution ${target}.avi
 #avconv -f image2 -r 25 -i ${tmpdir}/image-%04d.jpg -q:v 1 -vcodec mjpeg -aspect 16:9 -pix_fmt yuvj422p -s $resolution ${target}.avi
 
-if [ $? = 0 ]; then
+if [ $? != 0 ]; then
   rm -r ${tmpdir}
-  echo "---------------------------------------------"
-  echo "video" ${sourcedirectory}.avi "is ready to be happily mixed !"
-  echo "-------------  ----------------- --------  ----------"
-else
   echo "--------------------------------------"
   echo "ERROR : $avconverter failled to create ${sourcedirectory}.avi"
   echo "--- -------- -------------- --------  ------ ----"
   exit 1
 fi
+
+rm -r ${tmpdir}
+echo "---------------------------------------------"
+echo "video" ${sourcedirectory}.avi "is ready to be happily mixed !"
+echo "-------------  ----------------- --------  ----------"
+
+exit 0
