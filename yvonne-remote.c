@@ -62,6 +62,7 @@ void usage(void)
     "  -v, --videogap=integer     Gap of video numbering for resumption (optional)\n"
     "  -d  --delay=seconds        Delay between two shoot in seconds (default %d)\n"
     "  -b, --baud=rate            Baudrate (bps) of Arduino (default %d)\n"
+    "  -s, --stream=path_to       Path of stream source to useµ. Bypass the camera detection\n"
     "\n"
     "Dependecies: libgphoto2, ffmpeg, MagickWand\n"
     "\n", ARDUINO_DEFAULT_PORT, SHOOTING_DEFAULT_DELAY, ARDUINO_57600_BAUDRATE);
@@ -83,6 +84,7 @@ int main(int argc, char** argv)
     int photoIndex = 0;
     int sceneLowQualityIndex = 1;
     int videoIndex = 1;
+    bool streamAsSource = false;
     char arduinoDeviceName[SERIAL_PORT_MAXLENGHT];
     strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);// FIXME strlcpy
 
@@ -111,11 +113,12 @@ int main(int argc, char** argv)
         {"videogap",  required_argument, 0, 'v'},
         {"delay",     required_argument, 0, 'd'},
         {"quiet",     no_argument,       0, 'q'},
+        {"stream",    required_argument, 0, 's'},
         {NULL,        0,                 0,  0}
     };
 
     while(1) {
-        opt = getopt_long (argc, argv, "hqp:b:n:v:f:d:",
+        opt = getopt_long (argc, argv, "hqp:b:n:v:f:d:s:",
                            loptions, &option_index);
         if (opt==-1) break;
         switch (opt) {
@@ -159,6 +162,10 @@ int main(int argc, char** argv)
                   strcpy(sceneName, optarg);// FIXME strlcpy
                   if(!quiet) printf("Scene name set to '%s'\n",sceneName);
                 break;
+            case 's':
+                  streamAsSource = true;
+                  error(0, 0, "Stream feature TODO\n");
+                  exit(ERROR_GENERIC); //FIXME use nberr++
         }
     }
 
@@ -191,14 +198,17 @@ int main(int argc, char** argv)
       goto CLOSE_ARDUINO;
     }
 
-    YvonneCamera* camera = malloc(sizeof(YvonneCamera));
-    if(YvonnePhotoCaptureInit(camera) != ERROR_NO) {
-      goto CLOSE_CAMERA;
+    YvonneCamera* camera = NULL;
+    bool CameraExited = false;
+    if (!streamAsSource) {
+        YvonneCamera* camera = malloc(sizeof(YvonneCamera));
+        if(YvonnePhotoCaptureInit(camera) != ERROR_NO) {
+          goto CLOSE_CAMERA;
+        }
+        //give other access to the camera
+        gp_camera_exit (camera->cam,camera->ctx);
+        CameraExited = true;
     }
-
-    //give other access to the camera
-    gp_camera_exit (camera->cam,camera->ctx);
-    bool CameraExited = true;
 
     if(photoIndex == 0) {
       mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
@@ -297,6 +307,7 @@ int main(int argc, char** argv)
       if(CameraExited) ; //FIXME will solve some ContextError ?
       //take the photo
       if(!quiet) printf("Capturing to file %s\n", currentPhoto);
+      //~ if (!streamAsSource) { WIP
       if(YvonnePhotoCapture(camera, currentPhoto) == ERROR_NO){
         CameraExited = false;
         shootFailed = 0;
@@ -342,8 +353,10 @@ int main(int argc, char** argv)
   }
 
 CLOSE_CAMERA:
-  YvonnePhotoCaptureUnref(camera);
-  free(camera);
+  if (!streamAsSource) {
+    YvonnePhotoCaptureUnref(camera);
+    free(camera);
+  }
 
 CLOSE_ARDUINO:
   YvonneArduinoClose(fdArduinoModem, &oldtio);
