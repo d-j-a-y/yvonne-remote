@@ -11,6 +11,7 @@ Divided in two programs, the [first one](arduino-sketch) hosted on the Arduino t
 [![Yvonne remote out of binaries](http://media.tumblr.com/417ae335c7295ac8904b8843930aee39/tumblr_inline_n6otnevTaa1r1ocez.gif)](http://yvonne-tour.tumblr.com)
 
 ### DEPENDENCIES
+* ffmpeg
 * libgphoto2
 * MagickWand
 

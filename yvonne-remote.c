@@ -56,10 +56,10 @@ void usage(void)
     "Options:\n"
     "  -q  --quiet                Don't print out as much info\n"
     "  -h, --help                 Print this help message and quit\n"
-    "  -s, --scene=scenename      Name of the scene (defaut currentdir)\n" 
+    "  -n, --name=scenename       Name of the scene (defaut currentdir)\n"
     "  -p, --port=serialport      Serial port the Arduino is connected to (defaut %s)\n"
     "  -f, --fotogap=integer      Gap of scene (photo) numbering for resumption (optional)\n"
-    "  -v, --videogap=integer     Gap of video numbering for resumption (optional)\n"    
+    "  -v, --videogap=integer     Gap of video numbering for resumption (optional)\n"
     "  -d  --delay=seconds        Delay between two shoot in seconds (default %d)\n"
     "  -b, --baud=rate            Baudrate (bps) of Arduino (default %d)\n"
     "\n"
@@ -106,16 +106,16 @@ int main(int argc, char** argv)
         {"help",      no_argument,       0, 'h'},
         {"port",      required_argument, 0, 'p'},
         {"baud",      required_argument, 0, 'b'},
-        {"scene",     required_argument, 0, 's'},
+        {"name",      required_argument, 0, 'n'},
         {"fotogap",   required_argument, 0, 'f'},
-        {"videogap",  required_argument, 0, 'v'},        
+        {"videogap",  required_argument, 0, 'v'},
         {"delay",     required_argument, 0, 'd'},
         {"quiet",     no_argument,       0, 'q'},
         {NULL,        0,                 0,  0}
     };
 
     while(1) {
-        opt = getopt_long (argc, argv, "hqp:b:s:v:f:d:",
+        opt = getopt_long (argc, argv, "hqp:b:n:v:f:d:",
                            loptions, &option_index);
         if (opt==-1) break;
         switch (opt) {
@@ -153,7 +153,7 @@ int main(int argc, char** argv)
                   videoIndex = strtol(optarg,NULL,10);
                   if(!quiet) printf("Video numbering start from %d\n",videoIndex);
                 break;
-            case 's':
+            case 'n':
                   free(sceneName);
                   sceneName = malloc(strlen(optarg)*sizeof(char));
                   strcpy(sceneName, optarg);// FIXME strlcpy
