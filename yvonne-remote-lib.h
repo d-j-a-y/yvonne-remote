@@ -43,6 +43,9 @@ int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio
 void YvonneArduinoClose (int fd, struct termios* oldtio);
 int YvonneArduinoOpen (char* arduinoPort);
 
+int YvonneTerminalInit (struct termios * ttysave);
+int YvonneTerminalRestore (struct termios ttysave);
+
 char* YvonneGetSceneName();
 
 int YvonneExecute (char* srtCommandName, char* strCommandLine);

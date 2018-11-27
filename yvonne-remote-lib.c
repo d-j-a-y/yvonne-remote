@@ -24,6 +24,42 @@
 #include "yvonne-remote-lib.h"
 
 /**
+ *  YvonneTerminalInit
+ *  @param ttysave pointer to a terminal state structure
+ *  @return Error Code
+ *
+ *  Setup the terminal character mode :no echo, canonical read
+ */
+int YvonneTerminalInit (struct termios * ttysave)
+{
+    struct termios ttystate;
+    //get the terminal state
+    tcgetattr(STDIN_FILENO, &ttystate);
+    memcpy(ttysave, &ttystate, sizeof(struct termios));
+    //turn off canonical mode and echo
+    ttystate.c_lflag &= ~(ICANON | ECHO);
+    //minimum of number input read.
+    ttystate.c_cc[VMIN] = 1;
+    //set the terminal attributes.
+    tcsetattr(STDIN_FILENO, TCSANOW, &ttystate);
+    return ERROR_NO;
+}
+
+/**
+ *  YvonneTerminalRestore
+ *  @param ttysave terminal state structure
+ *  @return Error Code
+ *
+ *  Restore the terminal character mode
+ */
+int YvonneTerminalRestore (struct termios ttysave)
+{
+    //set the terminal saved attributes.
+    tcsetattr(STDIN_FILENO, TCSANOW, &ttysave);
+    return ERROR_NO;
+}
+
+/**
  *  YvonneArduinoOpen
  *  @param strArduinoPort  ( /dev/ttyACM0 )
  *  @return Arduino Arduino file descriptor or ERROR_GENERIC

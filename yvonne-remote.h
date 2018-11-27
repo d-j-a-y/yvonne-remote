@@ -34,6 +34,9 @@
 //mkdir
 #include <sys/stat.h>
 #include <sys/types.h>
+//teminal control
+#include <sys/select.h>
+#include <sys/time.h>
 
 #define ERROR_NO      0
 #define ERROR_GENERIC 1
