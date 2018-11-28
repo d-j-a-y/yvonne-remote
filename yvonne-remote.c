@@ -43,6 +43,7 @@
 
 #include "yvonne-remote.h"
 #include "yvonne-remote-lib.h"
+#include "yvonne-remote-ui.h"
 
 #include <getopt.h>
 #include <error.h>
@@ -182,7 +183,7 @@ int main(int argc, char** argv)
     int logDescriptor, logLenght = 0;
 
     if ((logDescriptor=open(logFile, O_WRONLY|O_CREAT|O_EXCL, 0644)) == -1) {
-      YvonnePrint(YVONNE_MSG_ERROR, "Can't create logfile \"%s\"", logFile);
+      yrc_uiPrint(YVONNE_MSG_ERROR, "Can't create logfile \"%s\"", logFile);
       perror("");
       goto CLOSE_SCENE_NAME;
     }
@@ -192,25 +193,25 @@ int main(int argc, char** argv)
     signal(SIGINT, intHandler);
 
     //! establish the connection with the arduino (mega2560) remote
-    int fdArduinoModem;
+    int fdArduinoModem = -1;
     struct termios oldtio;
 
     if (remoteControl) {
         if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
-          YvonnePrint(YVONNE_MSG_ERROR, "FATAL : Can't connect to remote. Arduino connection failed at %s", arduinoDeviceName);
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't connect to remote. Arduino connection failed at %s", arduinoDeviceName);
           perror("");
           goto CLOSE_LOG;
         }
         printf(ANSI_COLOR_CYAN "Remote control open from %s\n" ANSI_COLOR_RESET, arduinoDeviceName);
 
         if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio) != ERROR_NO) {
-          YvonnePrint(YVONNE_MSG_ERROR, "FATAL : Can't talk to remote. Arduino initialization failed");
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't talk to remote. Arduino initialization failed");
           perror("");
           goto CLOSE_ARDUINO;
         }
     } else {
         if (YvonneTerminalInit(&ttysave) != ERROR_NO) {
-          YvonnePrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the terminal.");
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the terminal.");
           perror("");
           goto CLOSE_LOG;
         }
@@ -253,6 +254,10 @@ int main(int argc, char** argv)
     //Generate current photo name
     sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
 
+    if (!remoteControl) { //TODO MEga nice ui
+        yrc_uiPrint (YVONNE_MSG_UI, "Enter command :\n\t- 's' : Start shooting\n\t- 'p' : Pause shooting\n\t- 'v' : Video generation\n\t- 'q' : Quit\n--> ");
+    }
+
     //! here start the (interesting) work
   while (!StateQuit && keepRunning) {
 
@@ -294,9 +299,35 @@ int main(int argc, char** argv)
         // the user typed a character so exit
         if(FD_ISSET(fileno(stdin), &readset))
         {
-            putchar(fgetc (stdin)); // manually echo the character
-            StateQuit = TRUE;
-            break;
+            int charcode = fgetc (stdin);
+            if (charcode == EOF) {
+                yrc_uiPrint(YVONNE_MSG_WARNING, "Something get wrong reading stdin...");
+            } else {
+            }
+            putchar(charcode); // manually echo the character
+            switch (charcode) {
+                case 's':
+                case 'S':
+                    StateStop = 0;
+                    yrc_uiPrint (YVONNE_MSG_INFO, "\nStart shooting ...");
+                break;
+                case 'p':
+                case 'P':
+                    StateStop = 1;
+                    yrc_uiPrint (YVONNE_MSG_INFO, "\nPause shooting ...");
+                break;
+                case 'v':
+                case 'V':
+                    StateVideo = 1;
+                    yrc_uiPrint (YVONNE_MSG_INFO, "\nThe video generation will start ...");
+                break;
+                case 'q':
+                case 'Q':
+                    StateQuit = 1;
+                    yrc_uiPrint (YVONNE_MSG_INFO, "\nWill quit as soon as ...");
+                break;
+            }
+
         }
     }
 
@@ -310,9 +341,10 @@ int main(int argc, char** argv)
       //INFO 25 f/s because all images are duplicated N time
       sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);// FIXME snprintf
       if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
-        YvonnePrint(YVONNE_MSG_ERROR, "ERROR during video generation cmd line : %s", commandLine);
+        yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR during video generation cmd line : %s", commandLine);
       }
       else {
+          //TODO MEga Nice Print
         printf (ANSI_COLOR_GREEN "#### -------------------------------------------- ####\n" ANSI_COLOR_RESET);
         printf (ANSI_COLOR_GREEN "####                                              ####\n" ANSI_COLOR_RESET);
         printf (ANSI_COLOR_GREEN "#### A fresh video will be available to be chewed ####\n" ANSI_COLOR_RESET);
@@ -335,17 +367,17 @@ int main(int argc, char** argv)
       StateVideo = 0;
     }
 
-    YvonnePrint(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto);
-
-    //Exit now!
+    //Try to exit now!
     if(StateQuit || !keepRunning) continue;
 
-    // to command the shooting and resize the image
-    if (!StateStop)
-    {
+    yrc_uiPrint(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto); //TODO MEGA NICE PRINT 
+
+    // Shoot and image resize
+    if (!StateStop) {
         if (!streamAsSource) {
+          // Photoshooting using gphoto
           if(CameraExited) ; //FIXME will solve some ContextError ?
-          //take the photo
+          // take the photo
           if(!quiet) printf("Capturing to file %s\n", currentPhoto);
           if(YvonnePhotoCapture(camera, currentPhoto) == ERROR_NO){
             CameraExited = false;
@@ -353,33 +385,33 @@ int main(int argc, char** argv)
             sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
 
             if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-              YvonnePrint(YVONNE_MSG_ERROR, "ERROR resizing image file %s", filesource);
+              yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR resizing image file %s", filesource);
 
-            //duplicate the lowquality photo to slowdown the video rythm
+            // duplicate the lowquality photo to slowdown the video rythm
             unsigned int repeatEachImage;
             // TODO video fps control
             for (repeatEachImage = LOWQUALITY_REPEAT; repeatEachImage > 0 ; repeatEachImage--) {
               sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
               if(link(filesource, filetarget)!=0) {
-                YvonnePrint(YVONNE_MSG_ERROR, "ERROR linking images files");
-                perror("");
+                yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR linking images files");
+                perror(""); // Print last error
               }
             }
             photoIndex++;
-            //Generate current photo name
+            // Generate next photo name
             sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
           }
           else {
-            YvonnePrint(YVONNE_MSG_WARNING, "Photo %s shoot has failed %d time(s)", currentPhoto, ++shootFailed);
+            yrc_uiPrint(YVONNE_MSG_WARNING, "Photo %s shoot has failed %d time(s)", currentPhoto, ++shootFailed);
             sleep(4);
             printf("Camera init again....\n");
             YvonnePhotoCaptureUnref(camera);
             if((YvonnePhotoCaptureInit(camera) != ERROR_NO) && (shootFailed >= CAMERA_INIT_ATTEMPT_MAX)) {
-                YvonnePrint(YVONNE_MSG_ERROR, "No camera auto detected. Check battery maybe?");
+                yrc_uiPrint(YVONNE_MSG_ERROR, "No camera auto detected. Check battery maybe?");
                 goto CLOSE_CAMERA;
             }
           }
-        } else {} //FIXME source as stream
+        } else {} //WIP source as stream
     }
     else {
       if (!streamAsSource) {
@@ -416,7 +448,7 @@ CLOSE_LOG:
 
 CLOSE_SCENE_NAME:
     free(sceneName);
-    YvonnePrint(YVONNE_MSG_INFO,"\nSuccessly close, see you next shot!");
+    yrc_uiPrint(YVONNE_MSG_INFO,"\nSuccessly close, see you next shot!");
     exit(EXIT_SUCCESS);
 }
 

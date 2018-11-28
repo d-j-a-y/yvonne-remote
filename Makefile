@@ -2,7 +2,10 @@
 
 #Variable declaration
 TARGET = yvonne-remote
-OBJECTS = yvonne-remote.o yvonne-remote-lib.o
+SRC= yvonne-remote.c \
+	yvonne-remote-lib.c \
+	yvonne-remote-ui.c
+OBJECTS=$(subst .c,.o,$(SRC))
 
 VERSIONFILE = installed.version
 
@@ -13,8 +16,13 @@ CFLAGS += `pkg-config --cflags libgphoto2`
 LDFLAGS = `pkg-config --libs MagickWand`
 LDFLAGS += `pkg-config --libs libgphoto2`
 
+# Compilateur C Ansi :
 CC = gcc
-
+AR = @ar –rv
+RMOBJ = @rm –f $(OBJ)/ *.o
+ECHO = @echo
+MKREP = @mkdir $(TARGETDIR)
+MKDROIT = @chmod u= rwx
 RM = rm -f
 
 prefix = /usr/local
@@ -26,10 +34,10 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $^
 
-
 # clean the project
 clean:
-	$(RM) $(TARGET) $(OBJECTS)
+	$(RM) $(TARGET)
+	$(RM) $(OBJECTS)
 
 # install the project
 install:

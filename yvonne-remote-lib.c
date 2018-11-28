@@ -22,6 +22,7 @@
 
 #include "yvonne-remote.h"
 #include "yvonne-remote-lib.h"
+#include "yvonne-remote-ui.h"
 
 /**
  *  YvonneTerminalInit
@@ -402,7 +403,7 @@ int YvonnePhotoCaptureInit (YvonneCamera *cam) {
 //    gp_camera_set_port_info(priv->cam, port);
 
   //This call will autodetect cameras, take the first one from the list and use it
-  YvonnePrint(YVONNE_MSG_INFO,"Camera init. Can take more than 10 seconds depending on the "
+  yrc_uiPrint(YVONNE_MSG_INFO,"Camera init. Can take more than 10 seconds depending on the "
   "memory card's contents (remove card from camera to speed up).");
   int ret = gp_camera_init(cam->cam, cam->ctx);
   if (ret < GP_OK) {
@@ -531,7 +532,7 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
  *  Gphoto2 error handler
  */
 void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
-  YvonnePrint(YVONNE_MSG_ERROR, "\n*** Contexterror ***\n%s", str);
+  yrc_uiPrint(YVONNE_MSG_ERROR, "\n*** Contexterror ***\n%s", str);
   //keepRunning = false;
 }
 
@@ -548,26 +549,3 @@ void YvonnePhotoCaptureMessage (GPContext *context, const char *str, void *data)
   fflush   (stderr);
 }
 
-void YvonnePrint(int messageType, char* message, ...) {
-  char buf[1024];
-  va_list args;
-  // parse arguments
-  va_start(args, message);
-  vsnprintf(buf, sizeof(buf) - 1, message, args);
-  char *errorColor;
-  switch(messageType) {
-    case YVONNE_MSG_ERROR:
-      errorColor = ANSI_COLOR_RED;
-    break;
-    case YVONNE_MSG_WARNING:
-      errorColor = ANSI_COLOR_YELLOW;
-    break;
-    case YVONNE_MSG_INFO:
-      errorColor = ANSI_COLOR_CYAN;
-    break;
-    default:
-      errorColor = ANSI_COLOR_RESET;
-  }
-  fprintf( stdout, "%s%s%s\n", errorColor, buf, ANSI_COLOR_RESET );
-  va_end(args);
-}
