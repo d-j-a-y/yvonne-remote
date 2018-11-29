@@ -24,6 +24,12 @@
 #define __YVONNEREMOTEUI__
 
 #include <stdarg.h>
+#include <ncurses.h>
+
+#define YRC_MENU_WIDTH 30
+#define YRC_MENU_HEIGHT 10
+
+#define YRC_MENU_ENTRY_NO -1
 
 typedef enum
 {
@@ -33,6 +39,14 @@ typedef enum
   YVONNE_MSG_UI,
   YVONNE_MSG_VIDEO_BANNER
 } YvonneMsgType;
+
+void yrc_menuPrint(WINDOW *menu_win, int highlight);
+int yrc_uiSetup();
+int yrc_uiRestore();
+
+int yrc_menuOpen(WINDOW **menu_win);
+int yrc_menuClose(WINDOW *menu_win);
+int yrc_menuGetEntry (WINDOW *menu_win, int *highlight);
 
 
 void yrc_uiPrint(YvonneMsgType msgType, char* message, ...);

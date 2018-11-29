@@ -15,6 +15,7 @@ CFLAGS += `pkg-config --cflags libgphoto2`
 
 LDFLAGS = `pkg-config --libs MagickWand`
 LDFLAGS += `pkg-config --libs libgphoto2`
+LDFLAGS += -lncurses
 
 # Compilateur C Ansi :
 CC = gcc

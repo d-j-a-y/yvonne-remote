@@ -195,6 +195,7 @@ int main(int argc, char** argv)
     //! establish the connection with the arduino (mega2560) remote
     int fdArduinoModem = -1;
     struct termios oldtio;
+    WINDOW *menu_win = NULL;
 
     if (remoteControl) {
         if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
@@ -210,11 +211,18 @@ int main(int argc, char** argv)
           goto CLOSE_ARDUINO;
         }
     } else {
-        if (YvonneTerminalInit(&ttysave) != ERROR_NO) {
-          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the terminal.");
+        if (yrc_uiSetup() != ERROR_NO) {
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the user interface.");
           perror("");
           goto CLOSE_LOG;
         }
+        yrc_menuOpen (&menu_win);
+
+        //~ if (YvonneTerminalInit(&ttysave) != ERROR_NO) {
+          //~ yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the terminal.");
+          //~ perror("");
+          //~ goto CLOSE_LOG;
+        //~ }
     }
 
     YvonneCamera* camera = NULL;
@@ -227,6 +235,8 @@ int main(int argc, char** argv)
         //give other access to the camera
         gp_camera_exit (camera->cam,camera->ctx);
         CameraExited = true;
+    } else {
+        //TODO Setup the stream
     }
 
     if(photoIndex == 0) {
@@ -254,8 +264,16 @@ int main(int argc, char** argv)
     //Generate current photo name
     sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
 
+    int row, col; //FIXME naming
+    int highlight = 1;//FIXME naming
     if (!remoteControl) { //TODO MEga nice ui
-        yrc_uiPrint (YVONNE_MSG_UI, "Enter command :\n\t- 's' : Start shooting\n\t- 'p' : Pause shooting\n\t- 'v' : Video generation\n\t- 'q' : Quit\n--> ");
+        //~ yrc_uiPrint (YVONNE_MSG_UI, "Enter command :\n\t- 's' : Start shooting\n\t- 'p' : Pause shooting\n\t- 'v' : Video generation\n\t- 'q' : Quit\n--> ");
+
+        mvprintw(0, 0, "Use arrow keys to go up and down, Press enter to select a choice");
+        refresh();
+
+        int highlight = 1;
+        yrc_menuPrint(menu_win, highlight);
     }
 
     //! here start the (interesting) work
@@ -284,6 +302,33 @@ int main(int argc, char** argv)
 
             memset(bufArduino, '\0', charReceived);
           }
+        }
+    } else if (TRUE) {
+        int yy = 0;
+        mvaddch(2,yy++,'*');
+
+        refresh();
+        int menu_choice;
+        if ((menu_choice = yrc_menuGetEntry (menu_win, &highlight)) != YRC_MENU_ENTRY_NO) {
+
+          mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", menu_choice, menu_choice);
+            refresh();
+ //           mvprintw(23, 0, "You chose choice %d with choice string %s\n", menu_choice, menu_choice);
+
+            switch(menu_choice) {
+                case 's':
+                    StateStop = 0;
+                break;
+                case 'p':
+                    StateStop = 1;
+                break;
+                case 'v':
+                    StateVideo = 1;
+                break;
+                case 'q':
+                    StateQuit = 1;
+                break;
+            }
         }
     } else {
         struct timeval tv;
@@ -438,8 +483,11 @@ CLOSE_ARDUINO:
     if (remoteControl) {
         YvonneArduinoClose(fdArduinoModem, &oldtio);
     } else {
-        YvonneTerminalRestore(ttysave);
+//        YvonneTerminalRestore(ttysave);
     }
+
+    yrc_menuClose (menu_win);
+    yrc_uiRestore ();
 
 CLOSE_LOG:
     logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf
