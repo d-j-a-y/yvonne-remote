@@ -24,6 +24,8 @@
 #include "yvonne-remote-lib.h"
 #include "yvonne-remote-ui.h"
 
+char bufArduino[ARDUINO_TEXTMAX]; // FIXME malloc;
+
 /**
  *  YvonneTerminalInit
  *  @param ttysave pointer to a terminal state structure
@@ -165,6 +167,8 @@ included by <termios.h> */
   // Now clean the modem line and activate the settings for the port
   tcflush(fd, TCIOFLUSH);
 
+  memset(bufArduino, '\0', ARDUINO_TEXTMAX);
+
   return ERROR_NO;
 }
 
@@ -181,6 +185,48 @@ void YvonneArduinoClose (int fd, struct termios* oldtio)
   tcsetattr(fd,TCSANOW,oldtio);
   /* close the file */
   close(fd);
+}
+
+/**
+ *  yrc_stateMachineArduino
+ *  @param pointer to int for bit field
+ *  @param Arduino file descriptor @see YvonneArduinoOpen
+ *
+ *  Update the state from COM/Arduino message stupid protocol
+ */
+void yrc_stateMachineArduino (int* yrc_stateField, int fdArduinoModem) {
+    char* stopIndex = 0;
+    char* startIndex = 0;
+
+    ssize_t charReceived = read(fdArduinoModem,bufArduino,ARDUINO_TEXTMAX); //FIXME sizeof bufArduino
+
+    if (charReceived == 0 || (charReceived <= -1 && errno == EAGAIN)) {
+      if(!TRUE) printf("Nothing to read from Arduino\n"); //FIXME quiet
+    }
+    else {
+      bufArduino[(unsigned char )charReceived]='\0'; //always > 0
+      if(!TRUE) printf("Arduino string readed : %s - %ld\n", bufArduino, charReceived); // FIXME quiet
+
+      if (charReceived) {
+        //~ StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
+        //~ StateQuit = (strstr(bufArduino, "QUIT") ? 1 : 0);
+        (*yrc_stateField) |= (strstr(bufArduino, "VIDEO") ? YRC_STATE_VIDEO : 0);
+        (*yrc_stateField) |= (strstr(bufArduino, "QUIT") ? YRC_STATE_QUIT : 0);
+//TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);
+        stopIndex = strstr_last(bufArduino, "STOP");
+        startIndex = strstr_last(bufArduino, "START");
+
+        if (startIndex || stopIndex) {
+            if (startIndex > stopIndex) {
+                (*yrc_stateField) |= YRC_STATE_PHOTO;
+            } else {
+                (*yrc_stateField) &= ~YRC_STATE_PHOTO;
+            }
+        }
+
+        memset(bufArduino, '\0', charReceived);
+      }
+    }
 }
 
 /**

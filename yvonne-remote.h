@@ -44,14 +44,13 @@
 #define _POSIX_SOURCE 1 /* POSIX compliant source FIXME */
 
 #define LINE_BUFFER                 255
-#define TEXTMAX                     255
 #define TEXTMAX_PHOTO               255
 
 #define SERIAL_PORT_MAXLENGHT       80
 #define SCENE_NAME_MAXLENGHT        20
 #define LOG_MAXLENGHT               255
 
-#define FFMPEG_STATIC_BUILD_INSTALL "/usr/local/bin/"
+#define FFMPEG_STATIC_BUILD_INSTALL   "/usr/local/bin/"
 
 #define SCENE_DEFAULT_NAME            "yvonne"
 #define OLD_LOWQUALITY_RESOLUTION     "640x480"
@@ -71,5 +70,8 @@
 #define ARDUINO_MEDA2560_ACM0         "/dev/ttyACM0"
 #define ARDUINO_DEFAULT_PORT          ARDUINO_MEDA2560_ACM0
 
+#define YRC_STATE_VIDEO               (1 << 0)  /* 00000001 */
+#define YRC_STATE_PHOTO               (1 << 1)  /* 00000010 */
+#define YRC_STATE_QUIT                (1 << 2)  /* 00000100 */
 
 #endif //  __YVONNEREMOTE__

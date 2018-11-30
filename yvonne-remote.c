@@ -163,7 +163,7 @@ int main(int argc, char** argv)
                   free(sceneName);
                   sceneName = malloc(strlen(optarg)*sizeof(char));
                   strcpy(sceneName, optarg);// FIXME strlcpy
-                  if(!quiet) printf("Scene name set to '%s'\n",sceneName);
+                  if(!quiet) printf("Scene name assigned to '%s'\n",sceneName);
                 break;
             case 's':
                   streamAsSource = true;
@@ -178,7 +178,8 @@ int main(int argc, char** argv)
         }
     }
 
-    char logFile[]="yvonne.log";
+    //! log file creation and start
+    char logFile[]="yvonne.log"; // TODO scene name + horodate
     char logMessage [LOG_MAXLENGHT];
     int logDescriptor, logLenght = 0;
 
@@ -187,17 +188,18 @@ int main(int argc, char** argv)
       perror("");
       goto CLOSE_SCENE_NAME;
     }
-    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);//FIXME snprintf
+    logLenght = sprintf(logMessage, "BEGIN of %s's log\n", sceneName);//FIXME snprintf TODO date more info
     write(logDescriptor, logMessage, logLenght*sizeof(char));
 
     signal(SIGINT, intHandler);
 
-    //! establish the connection with the arduino (mega2560) remote
+    //! establish the connection with the adhoc local or remote control
     int fdArduinoModem = -1;
     struct termios oldtio;
     WINDOW *menu_win = NULL;
 
-    if (remoteControl) {
+    if (remoteControl) { // arduino remote control
+    //! establish the connection with the arduino (mega2560) remote
         if((fdArduinoModem = YvonneArduinoOpen(arduinoDeviceName)) == ERROR_GENERIC) {
           yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't connect to remote. Arduino connection failed at %s", arduinoDeviceName);
           perror("");
@@ -208,23 +210,30 @@ int main(int argc, char** argv)
         if (YvonneArduinoInit(fdArduinoModem, baudrate, &oldtio) != ERROR_NO) {
           yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't talk to remote. Arduino initialization failed");
           perror("");
-          goto CLOSE_ARDUINO;
+          goto CLOSE_CONTROL;
         }
-    } else {
+    } else { // local terminal ncurses
         if (yrc_uiSetup() != ERROR_NO) {
-          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the user interface.");
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the user interface."); // TODO fallback to tty
           perror("");
           goto CLOSE_LOG;
         }
-        yrc_menuOpen (&menu_win);
+        if (yrc_menuOpen (&menu_win) != ERROR_NO) {
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't create ui menu");// TODO fallback to tty
+          perror("");
+          goto CLOSE_CONTROL;
+        }
 
-        //~ if (YvonneTerminalInit(&ttysave) != ERROR_NO) {
-          //~ yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the terminal.");
-          //~ perror("");
-          //~ goto CLOSE_LOG;
-        //~ }
+        if (FALSE) { // local terminal tty
+        if (YvonneTerminalInit(&ttysave) != ERROR_NO) {
+          yrc_uiPrint(YVONNE_MSG_ERROR, "FATAL : Can't setup the terminal.");
+          perror("");
+          goto CLOSE_LOG;
+        }
+        }
     }
 
+    //! initialize image selected source
     YvonneCamera* camera = NULL;
     bool CameraExited = false;
     if (!streamAsSource) {
@@ -239,98 +248,42 @@ int main(int argc, char** argv)
         //TODO Setup the stream
     }
 
+    //! images folders creation
     if(photoIndex == 0) {
       mkdir(LOWQUALITY_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
       mkdir(VIDEO_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
       mkdir(TMP_DIRECTORY,S_IFDIR|S_IRWXU|S_IRWXG);
     }
 
-    int charReceived;
-    int startSequence = 1;
-//TODO malloc?
-    char bufArduino[TEXTMAX];
-//TODO State Mask
-    int StateStop = 1;
-    int StateVideo = 0;
-    int StateQuit = 0;
-    char commandLine[LINE_BUFFER];
     char currentPhoto[TEXTMAX_PHOTO];
-
-    char* stopIndex = 0;
-    char* startIndex = 0;
-
-    unsigned int shootFailed = 0;
-
-    //Generate current photo name
+    //! Current photo name generation
     sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
 
-    int row, col; //FIXME naming
-    int highlight = 1;//FIXME naming
-    if (!remoteControl) { //TODO MEga nice ui
-        //~ yrc_uiPrint (YVONNE_MSG_UI, "Enter command :\n\t- 's' : Start shooting\n\t- 'p' : Pause shooting\n\t- 'v' : Video generation\n\t- 'q' : Quit\n--> ");
-
+    if (!remoteControl) {
+        //~ if ncurseok
         mvprintw(0, 0, "Use arrow keys to go up and down, Press enter to select a choice");
         refresh();
-
-        int highlight = 1;
-        yrc_menuPrint(menu_win, highlight);
+        yrc_menuPrint(menu_win, 1);
+        //~ ELSE yrc_uiPrint (YVONNE_MSG_UI, "Enter command :\n\t- 's' : Start shooting\n\t- 'p' : Pause shooting\n\t- 'v' : Video generation\n\t- 'q' : Quit\n--> ");
     }
 
+    int yrc_stateField = YRC_STATE_PHOTO;
+    char commandLine[LINE_BUFFER];
+    unsigned int shootFailed = 0;
+    int startSequence = 1;
+
     //! here start the (interesting) work
-  while (!StateQuit && keepRunning) {
+  while (!(yrc_stateField & YRC_STATE_QUIT) && keepRunning) {
 
-    //Listen to the Arduino remote and adjust state
     if(remoteControl) {
-        charReceived = read(fdArduinoModem,bufArduino,TEXTMAX);
-
-        if (charReceived == 0 || (charReceived == -1 && errno == EAGAIN)) {
-          if(!quiet) printf("Nothing to read from Arduino\n");
-        }
-        else {
-          bufArduino[charReceived]='\0';
-          if(!quiet) printf("Arduino string readed : %s - %d\n", bufArduino, charReceived);
-
-          if (charReceived) {
-            StateVideo = (strstr(bufArduino, "VIDEO") ? 1 : 0);
-            StateQuit = (strstr(bufArduino, "QUIT") ? 1 : 0);
-    //TODO          Speed = (strstr(bufArduino, "SPEED1") ? 1 : 0);
-            stopIndex = strstr_last(bufArduino, "STOP");
-            startIndex = strstr_last(bufArduino, "START");
-
-            if (startIndex || stopIndex)
-              StateStop = (startIndex > stopIndex) ? 0 : 1;
-
-            memset(bufArduino, '\0', charReceived);
-          }
-        }
+    //! Listen to the Arduino remote and adjust state
+        yrc_stateMachineArduino (&yrc_stateField, fdArduinoModem);
     } else if (TRUE) {
-        int yy = 0;
-        mvaddch(2,yy++,'*');
+    //! Listen to the local ncurses control and adjust state
+        yrc_stateMachineLocal ( &yrc_stateField , menu_win );
 
-        refresh();
-        int menu_choice;
-        if ((menu_choice = yrc_menuGetEntry (menu_win, &highlight)) != YRC_MENU_ENTRY_NO) {
-
-          mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", menu_choice, menu_choice);
-            refresh();
- //           mvprintw(23, 0, "You chose choice %d with choice string %s\n", menu_choice, menu_choice);
-
-            switch(menu_choice) {
-                case 's':
-                    StateStop = 0;
-                break;
-                case 'p':
-                    StateStop = 1;
-                break;
-                case 'v':
-                    StateVideo = 1;
-                break;
-                case 'q':
-                    StateQuit = 1;
-                break;
-            }
-        }
-    } else {
+    } else { // FIXME yrc_stateMachineLocalFailback
+    //! Listen to the local failback control and adjust state
         struct timeval tv;
         // set the time value to 1 second
         tv.tv_sec = 1; // FIXME needed inside the loop ?
@@ -353,22 +306,26 @@ int main(int argc, char** argv)
             switch (charcode) {
                 case 's':
                 case 'S':
-                    StateStop = 0;
+                    //~ (*yrc_stateField) &= ~YRC_STATE_PHOTO;
+                    (yrc_stateField) &= ~YRC_STATE_PHOTO;
                     yrc_uiPrint (YVONNE_MSG_INFO, "\nStart shooting ...");
                 break;
                 case 'p':
                 case 'P':
-                    StateStop = 1;
+                    //~ (*yrc_stateField) |= YRC_STATE_PHOTO;
+                    yrc_stateField |= YRC_STATE_PHOTO;
                     yrc_uiPrint (YVONNE_MSG_INFO, "\nPause shooting ...");
                 break;
                 case 'v':
                 case 'V':
-                    StateVideo = 1;
+                    yrc_stateField |= YRC_STATE_VIDEO;
+                    //~ (*yrc_stateField) |= YRC_STATE_VIDEO;
                     yrc_uiPrint (YVONNE_MSG_INFO, "\nThe video generation will start ...");
                 break;
                 case 'q':
                 case 'Q':
-                    StateQuit = 1;
+                    //~ (*yrc_stateField) |= YRC_STATE_QUIT;
+                    yrc_stateField |= YRC_STATE_QUIT;
                     yrc_uiPrint (YVONNE_MSG_INFO, "\nWill quit as soon as ...");
                 break;
             }
@@ -377,7 +334,7 @@ int main(int argc, char** argv)
     }
 
     //For Video generation
-    if (StateVideo)
+    if (yrc_stateField & YRC_STATE_VIDEO)
     {
       //resize the photo
       //TODO change LOWQUALITY_DIRECTORY to command line parameter
@@ -409,21 +366,22 @@ int main(int argc, char** argv)
       startSequence = sceneLowQualityIndex;
       videoIndex++;
 
-      StateVideo = 0;
+      yrc_stateField &= ~YRC_STATE_VIDEO; // clear bit
     }
 
     //Try to exit now!
-    if(StateQuit || !keepRunning) continue;
+    if((yrc_stateField & YRC_STATE_QUIT) || !keepRunning) continue;
 
     yrc_uiPrint(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto); //TODO MEGA NICE PRINT 
 
     // Shoot and image resize
-    if (!StateStop) {
+    if (yrc_stateField & YRC_STATE_PHOTO) {
+                  if(!quiet) printf("Capturing to file %s\n", currentPhoto);
         if (!streamAsSource) {
           // Photoshooting using gphoto
           if(CameraExited) ; //FIXME will solve some ContextError ?
           // take the photo
-          if(!quiet) printf("Capturing to file %s\n", currentPhoto);
+//          if(!quiet) printf("Capturing to file %s\n", currentPhoto);
           if(YvonnePhotoCapture(camera, currentPhoto) == ERROR_NO){
             CameraExited = false;
             shootFailed = 0;
@@ -456,7 +414,11 @@ int main(int argc, char** argv)
                 goto CLOSE_CAMERA;
             }
           }
-        } else {} //WIP source as stream
+        } else {
+                        photoIndex++;
+            // Generate next photo name
+            sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
+        } //WIP source as stream
     }
     else {
       if (!streamAsSource) {
@@ -479,15 +441,14 @@ CLOSE_CAMERA:
         free (sourceName);
     }
 
-CLOSE_ARDUINO:
+CLOSE_CONTROL:
     if (remoteControl) {
         YvonneArduinoClose(fdArduinoModem, &oldtio);
     } else {
 //        YvonneTerminalRestore(ttysave);
+        if(menu_win) yrc_menuClose (menu_win);
+        yrc_uiRestore ();
     }
-
-    yrc_menuClose (menu_win);
-    yrc_uiRestore ();
 
 CLOSE_LOG:
     logLenght = sprintf(logMessage, "END of %s's log\n", sceneName);// FIXME snprintf

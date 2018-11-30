@@ -30,7 +30,7 @@ char *yrc_menuEntry[] = { "Start - 's'",
                           "Pause - 'p'",
                           "Video - 'v'",
                           "Quit  - 'q'",
-                        };
+                        }; // Help ?
 
 char yrc_menuEntryCode[] = { 's',
                              'p',
@@ -93,11 +93,10 @@ int yrc_uiRestore () {
  */
 int yrc_menuOpen (WINDOW **menu_win) {
 
-    int row, col;
-
-    getmaxyx(stdscr,row,col); /* get the number of rows and columns */
-    startx = (80 - YRC_MENU_WIDTH) / 2;
-    starty = (24 - YRC_MENU_HEIGHT) / 2;
+    //~ int row, col;
+    //~ getmaxyx(stdscr,row,col); /* FIXME get the number of rows and columns */
+    startx = (COLS - YRC_MENU_WIDTH) / 2;
+    starty = (LINES - YRC_MENU_HEIGHT) / 2;
 
     (*menu_win) = newwin(YRC_MENU_HEIGHT, YRC_MENU_WIDTH, starty, startx);
     wtimeout ((*menu_win), 300);
@@ -147,15 +146,16 @@ void yrc_menuPrint (WINDOW *menu_win, int highlight)
 }
 
 /**
- *  yrc_menuGetEntry
+ *  yrc_menuCheckEntry
  *  @param A pointer to a ncurses WINDOW pointer
  *  @param A pointer to the current highlighted menu entry
  *
- *  @return Error Code
+ *  @return Menu entry selection has letter or YRC_MENU_ENTRY_NO
  *
- *  Restore the initial terminal state
+ *  Check (no block has set) for key pressed.
+ *  Adjust menu selection and status accordingly.
  */
-int yrc_menuGetEntry (WINDOW *menu_win, int *highlight) {
+int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight) {
     int c;
     int choice = YRC_MENU_ENTRY_NO;
 
@@ -179,9 +179,7 @@ int yrc_menuGetEntry (WINDOW *menu_win, int *highlight) {
         case 's':
         case 'S':
             choice = 's';
-            mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
-            refresh();
-                        break;
+            break;
         case 'p':
         case 'P':
             choice = 'p';
@@ -197,13 +195,41 @@ int yrc_menuGetEntry (WINDOW *menu_win, int *highlight) {
         case EOF:
             break;
         default:
-            //~ mvprintw(24, 0, "Charcter pressed is = %3d Hopefully it can be printed as '%c'", c, c);
-            //~ refresh();
+            mvprintw(24, 0, "Unexpected character pressed '%c'.", c);
+            refresh();
             break;
     }
     yrc_menuPrint(menu_win, (*highlight));
 
     return choice;
+}
+
+void yrc_stateMachineLocal ( int *yrc_stateField , WINDOW* menu_win) {
+    static int highlight = 1;
+    static int yy = 0;
+    mvaddch(2,yy++,'*');
+    refresh();
+
+    int menu_choice;
+    if ((menu_choice = yrc_menuCheckEntry (menu_win, &highlight)) != YRC_MENU_ENTRY_NO) {
+        switch(menu_choice) {
+            case 'p':
+                (*yrc_stateField) &= ~YRC_STATE_PHOTO;
+            break;
+            case 's':
+                //~ StateStop = 1;
+                (*yrc_stateField) |= YRC_STATE_PHOTO;
+            break;
+            case 'v':
+                //~ StateVideo = 1;
+                (*yrc_stateField) |= YRC_STATE_VIDEO;
+            break;
+            case 'q':
+                //~ StateQuit = 1;
+                (*yrc_stateField) |= YRC_STATE_QUIT;
+            break;
+        }
+    }
 }
 
 /**

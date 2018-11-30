@@ -46,8 +46,9 @@ int yrc_uiRestore();
 
 int yrc_menuOpen(WINDOW **menu_win);
 int yrc_menuClose(WINDOW *menu_win);
-int yrc_menuGetEntry (WINDOW *menu_win, int *highlight);
+int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight);
 
+void yrc_stateMachineLocal ( int* yrc_stateField , WINDOW* menu_win);
 
 void yrc_uiPrint(YvonneMsgType msgType, char* message, ...);
 

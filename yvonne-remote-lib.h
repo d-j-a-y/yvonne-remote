@@ -30,6 +30,8 @@
 #include <wand/MagickWand.h>
 #include <gphoto2/gphoto2-camera.h>
 
+#define ARDUINO_TEXTMAX                     255
+
 typedef struct _YvonneCamera {
     GPContext *ctx;
     Camera *cam;
@@ -38,6 +40,8 @@ typedef struct _YvonneCamera {
 int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio);
 void YvonneArduinoClose (int fd, struct termios* oldtio);
 int YvonneArduinoOpen (char* arduinoPort);
+
+void yrc_stateMachineArduino (int* yrc_stateField, int fdArduinoModem);
 
 int YvonneTerminalInit (struct termios * ttysave);
 int YvonneTerminalRestore (struct termios ttysave);
