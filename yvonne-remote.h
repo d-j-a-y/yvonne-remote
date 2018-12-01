@@ -74,4 +74,7 @@
 #define YRC_STATE_PHOTO               (1 << 1)  /* 00000010 */
 #define YRC_STATE_QUIT                (1 << 2)  /* 00000100 */
 
+#define JPG                           0
+#define PNG                           1
+
 #endif //  __YVONNEREMOTE__

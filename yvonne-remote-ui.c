@@ -206,9 +206,14 @@ int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight) {
 
 void yrc_stateMachineLocal ( int *yrc_stateField , WINDOW* menu_win) {
     static int highlight = 1;
-    static int yy = 0;
-    mvaddch(2,yy++,'*');
+
+    static int yy = -1;
+    static char tictac = '*';
+
+    if(yy == -1) yy = YRC_UI_INDEX_X ;
+    mvaddch(LINES-3,yy++,tictac);
     refresh();
+    if (yy >= COLS-1 ){ yy = YRC_UI_INDEX_X; tictac = ~tictac; }
 
     int menu_choice;
     if ((menu_choice = yrc_menuCheckEntry (menu_win, &highlight)) != YRC_MENU_ENTRY_NO) {
@@ -269,4 +274,39 @@ void yrc_uiPrint (YvonneMsgType msgType, char* message, ...) {
   }
   fprintf( stdout, "%s%s%s\n", errorColor, buf, ANSI_COLOR_RESET );
   va_end(args);
+}
+
+/**
+ *  yrc_uiPrintHelp
+ *
+ *  Display the help message in the upper left window corner
+ */
+void yrc_uiPrintHelp(){
+
+    mvprintw(0, 0, "Use shortcuts or arrow keys up and down and Enter to select a choice.");
+    refresh();
+}
+
+/**
+ *  yrc_uiPrintLayout
+ *
+ *  Print the immobile stuf
+ */
+void yrc_uiPrintLayout(){
+
+    mvprintw(LINES-2, YRC_UI_INDEX_X, "Current photo : ");
+    mvprintw(LINES-1, YRC_UI_INDEX_X, "Current video : ");
+    refresh();
+}
+
+/**
+ *  yrc_uiPrintMediaIndex
+ *
+ *  Print the immobile stuf
+ */
+void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo){
+
+    mvprintw(LINES-2, YRC_UI_INDEX_X+16, "%d", currentPhoto); //strlen current photo
+    mvprintw(LINES-1, YRC_UI_INDEX_X+16, "%d", currentVideo);
+    refresh();
 }

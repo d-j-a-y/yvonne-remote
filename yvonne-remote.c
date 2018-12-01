@@ -50,6 +50,12 @@
 #include <stdbool.h>
 #include <signal.h>
 
+char *fileFormat[] = {"jpg",
+                      "png",
+                      NULL
+                     };
+
+
 void usage(void)
 {
     printf("Usage: yvonne-remote [OPTIONS]\n"
@@ -93,6 +99,7 @@ int main(int argc, char** argv)
     char *sourceName=NULL;
     char filesource [256];
     char filetarget [256];
+    char *photoFormat = fileFormat[JPG];
 
     strcpy(arduinoDeviceName, ARDUINO_DEFAULT_PORT);// FIXME strlcpy
 
@@ -169,6 +176,7 @@ int main(int argc, char** argv)
                   streamAsSource = true;
                   sourceName = malloc(strlen(optarg)*sizeof(char));
                   strcpy(sourceName, optarg);// FIXME strlcpy
+                  photoFormat = fileFormat[PNG];
                   if(!quiet) printf("Source set to '%s'\n",sourceName);
                 break;
             case 'R':
@@ -257,13 +265,13 @@ int main(int argc, char** argv)
 
     char currentPhoto[TEXTMAX_PHOTO];
     //! Current photo name generation
-    sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
+    sprintf(currentPhoto , "%s-%05d.%s", sceneName, photoIndex, photoFormat);// FIXME strlcpy
 
     if (!remoteControl) {
         //~ if ncurseok
-        mvprintw(0, 0, "Use arrow keys to go up and down, Press enter to select a choice");
-        refresh();
+        yrc_uiPrintHelp();
         yrc_menuPrint(menu_win, 1);
+        yrc_uiPrintLayout ();
         //~ ELSE yrc_uiPrint (YVONNE_MSG_UI, "Enter command :\n\t- 's' : Start shooting\n\t- 'p' : Pause shooting\n\t- 'v' : Video generation\n\t- 'q' : Quit\n--> ");
     }
 
@@ -281,7 +289,6 @@ int main(int argc, char** argv)
     } else if (TRUE) {
     //! Listen to the local ncurses control and adjust state
         yrc_stateMachineLocal ( &yrc_stateField , menu_win );
-
     } else { // FIXME yrc_stateMachineLocalFailback
     //! Listen to the local failback control and adjust state
         struct timeval tv;
@@ -341,9 +348,17 @@ int main(int argc, char** argv)
       //INFO -vframes n or -frames:v to control the quantity of frames
 
       //INFO 25 f/s because all images are duplicated N time
-      sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.jpg\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", startSequence, LOWQUALITY_DIRECTORY, sceneName, LOWQUALITY_RESOLUTION, VIDEO_DIRECTORY, sceneName, videoIndex);// FIXME snprintf
+      sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.%s\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", 
+                                                    startSequence,
+                                                    LOWQUALITY_DIRECTORY,
+                                                    sceneName,
+                                                    photoFormat,
+                                                    LOWQUALITY_RESOLUTION,
+                                                    VIDEO_DIRECTORY,
+                                                    sceneName,
+                                                    videoIndex);// FIXME snprintf
       if (YvonneExecuteForked ("video generation", commandLine) != ERROR_NO) {
-        yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR during video generation cmd line : %s", commandLine);
+        yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR during video generation cmd line : %s", commandLine); // FIXME if fail video index will still be increase and other
       }
       else {
           //TODO MEga Nice Print
@@ -372,39 +387,27 @@ int main(int argc, char** argv)
     //Try to exit now!
     if((yrc_stateField & YRC_STATE_QUIT) || !keepRunning) continue;
 
-    yrc_uiPrint(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto); //TODO MEGA NICE PRINT 
-
+    if(remoteControl) {
+        yrc_uiPrint(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto); //TODO MEGA NICE PRINT 
+    }else {
+        yrc_uiPrintMediaIndex(photoIndex, videoIndex);
+    }
     // Shoot and image resize
     if (yrc_stateField & YRC_STATE_PHOTO) {
-                  if(!quiet) printf("Capturing to file %s\n", currentPhoto);
-        if (!streamAsSource) {
+        if(remoteControl) {
+          if(!quiet) printf("Capturing to file %s\n", currentPhoto);
+        }
+        bool captureOK = TRUE;
+        if (!streamAsSource) { //Catpture from gphoto lib
           // Photoshooting using gphoto
           if(CameraExited) ; //FIXME will solve some ContextError ?
-          // take the photo
 //          if(!quiet) printf("Capturing to file %s\n", currentPhoto);
+          // take the photo now!
           if(YvonnePhotoCapture(camera, currentPhoto) == ERROR_NO){
             CameraExited = false;
             shootFailed = 0;
-            sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
-
-            if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO)
-              yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR resizing image file %s", filesource);
-
-            // duplicate the lowquality photo to slowdown the video rythm
-            unsigned int repeatEachImage;
-            // TODO video fps control
-            for (repeatEachImage = LOWQUALITY_REPEAT; repeatEachImage > 0 ; repeatEachImage--) {
-              sprintf(filetarget, "%s/%s-%05d.jpg", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++);// FIXME snprintf
-              if(link(filesource, filetarget)!=0) {
-                yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR linking images files");
-                perror(""); // Print last error
-              }
-            }
-            photoIndex++;
-            // Generate next photo name
-            sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
-          }
-          else {
+          } else {
+            captureOK = FALSE;
             yrc_uiPrint(YVONNE_MSG_WARNING, "Photo %s shoot has failed %d time(s)", currentPhoto, ++shootFailed);
             sleep(4);
             printf("Camera init again....\n");
@@ -414,11 +417,37 @@ int main(int argc, char** argv)
                 goto CLOSE_CAMERA;
             }
           }
-        } else {
-                        photoIndex++;
-            // Generate next photo name
-            sprintf(currentPhoto , "%s-%05d.jpg", sceneName, photoIndex);// FIXME strlcpy
-        } //WIP source as stream
+        } else { // Stream has source, capture from video4linux2 device.
+            sprintf(commandLine, "ffmpeg -hide_banner -t 1 -f video4linux2 -i \"%s\" -f image2 -vframes 1 -s %s %s", sourceName, LOWQUALITY_RESOLUTION, currentPhoto);// FIXME snprintf
+
+            if (YvonneExecute ("video generation", commandLine) != ERROR_NO) {
+                yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR during video generation cmd line : %s", commandLine); // FIXME if fail video index will still be increase and other
+                captureOK = FALSE;
+            }
+        }
+
+        if (captureOK){
+            sprintf(filesource, "%s/%s", TMP_DIRECTORY, currentPhoto);// FIXME snprintf
+            if(YvonnePhotoResize(currentPhoto, filesource, LOWQUALITY_RESOLUTION_W,LOWQUALITY_RESOLUTION_H) != ERROR_NO) {
+              yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR resizing image file %s", filesource);//FIXME error not trapt
+            } else {
+                // duplicate the lowquality photo to slowdown the video rythm
+                unsigned int repeatEachImage;
+                // TODO video fps control
+                for (repeatEachImage = LOWQUALITY_REPEAT; repeatEachImage > 0 ; repeatEachImage--) {
+                  sprintf(filetarget, "%s/%s-%05d.%s", LOWQUALITY_DIRECTORY, sceneName, sceneLowQualityIndex++, photoFormat);// FIXME snprintf
+                  if(link(filesource, filetarget)!=0) {
+                    yrc_uiPrint(YVONNE_MSG_ERROR, "ERROR linking images files");
+                    perror(""); // Print last error
+                    pause ();
+                  }
+                }
+                //! Generate next photo name
+                photoIndex++;
+                sprintf(currentPhoto , "%s-%05d.%s", sceneName, photoIndex, photoFormat);// FIXME strlcpy
+            }
+        }
+
     }
     else {
       if (!streamAsSource) {

@@ -2,10 +2,10 @@
 
 #Variable declaration
 TARGET = yvonne-remote
-SRC= yvonne-remote.c \
-	yvonne-remote-lib.c \
-	yvonne-remote-ui.c
-OBJECTS=$(subst .c,.o,$(SRC))
+SRC= yvonne-remote-lib.c \
+	 yvonne-remote-ui.c
+#OBJECTS=$(subst .c,.o,$(SRC)) // https://stackoverflow.com/questions/20514587/text0x20-undefined-reference-to-main-and-undefined-reference-to-function
+OBJECTS = yvonne-remote.o yvonne-remote-lib.o yvonne-remote-ui.o
 
 VERSIONFILE = installed.version
 

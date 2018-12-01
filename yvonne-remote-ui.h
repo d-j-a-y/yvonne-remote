@@ -26,10 +26,12 @@
 #include <stdarg.h>
 #include <ncurses.h>
 
-#define YRC_MENU_WIDTH 30
-#define YRC_MENU_HEIGHT 10
+#define YRC_MENU_WIDTH      30
+#define YRC_MENU_HEIGHT     10
 
-#define YRC_MENU_ENTRY_NO -1
+#define YRC_MENU_ENTRY_NO   -1
+
+#define YRC_UI_INDEX_X      (COLS-20)
 
 typedef enum
 {
@@ -51,6 +53,9 @@ int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight);
 void yrc_stateMachineLocal ( int* yrc_stateField , WINDOW* menu_win);
 
 void yrc_uiPrint(YvonneMsgType msgType, char* message, ...);
+void yrc_uiPrintHelp();
+void yrc_uiPrintLayout();
+void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo);
 
 #endif //__YVONNEREMOTEUI__
 
