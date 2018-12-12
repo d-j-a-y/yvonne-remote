@@ -9,7 +9,10 @@
 * fix error label (goto) on the fly
 * camera settings by scene. arduino push button : next scene + scene num display. scene cam settings option file
 * after new camera settings by scene, photo review and adjust ?
-* video streams
+* video streams (WIP)
+* video ratio : by parameter else nearest from photo ratio
+* local control failback
+* ffmpeg failed output parse
 
 
 ##FIXME

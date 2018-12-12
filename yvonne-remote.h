@@ -38,6 +38,10 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
+#include <signal.h>
+
+extern volatile sig_atomic_t exec_status;
+
 #define ERROR_NO      0
 #define ERROR_GENERIC 1
 
@@ -73,8 +77,12 @@
 #define YRC_STATE_VIDEO               (1 << 0)  /* 00000001 */
 #define YRC_STATE_PHOTO               (1 << 1)  /* 00000010 */
 #define YRC_STATE_QUIT                (1 << 2)  /* 00000100 */
+#define YRC_STATE_VIDEO_PROGRESS      (1 << 3)  /* 00001000 */
 
 #define JPG                           0
 #define PNG                           1
+
+#define RENDER_OK                     0
+#define RENDER_KO                     1
 
 #endif //  __YVONNEREMOTE__

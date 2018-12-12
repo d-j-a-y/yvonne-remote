@@ -31,7 +31,10 @@
 
 #define YRC_MENU_ENTRY_NO   -1
 
-#define YRC_UI_INDEX_X      (COLS-20)
+#define YRC_UI_FOOTER_H     (4)
+
+#define YRC_UI_INDEX_X      (COLS-12)
+#define YRC_UI_INDEX_TEXT_L (8)
 
 typedef enum
 {
@@ -43,19 +46,24 @@ typedef enum
 } YvonneMsgType;
 
 void yrc_menuPrint(WINDOW *menu_win, int highlight);
-int yrc_uiSetup();
-int yrc_uiRestore();
+int yrc_uiSetup(void);
+int yrc_uiRestore(void);
 
 int yrc_menuOpen(WINDOW **menu_win);
 int yrc_menuClose(WINDOW *menu_win);
 int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight);
 
-void yrc_stateMachineLocal ( int* yrc_stateField , WINDOW* menu_win);
+int yrc_errorOpen(WINDOW **menu_win);
+int yrc_errorClose(WINDOW *menu_win);
 
-void yrc_uiPrint(YvonneMsgType msgType, char* message, ...);
-void yrc_uiPrintHelp();
-void yrc_uiPrintLayout();
+void yrc_stateMachineLocal ( volatile sig_atomic_t *yrc_stateField , WINDOW* menu_win);
+
+void yrc_coloredPrintf(YvonneMsgType msgType, char* message, ...);
+
+void yrc_uiPrintHelp(void);
+void yrc_uiPrintLayout(void);
 void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo);
+void yrc_uiPrintMessage(WINDOW* win, YvonneMsgType msgType, char* errorMessage, ...);
 
 #endif //__YVONNEREMOTEUI__
 

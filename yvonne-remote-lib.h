@@ -26,9 +26,13 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 #include <wand/MagickWand.h>
 #include <gphoto2/gphoto2-camera.h>
+
+#define ERROR_EXEC_COMMAND_FAIL             100
+#define ERROR_EXEC_FAIL                     101
 
 #define ARDUINO_TEXTMAX                     255
 
@@ -41,15 +45,17 @@ int YvonneArduinoInit (int iFileDescriptor, int baudrate, struct termios* oldtio
 void YvonneArduinoClose (int fd, struct termios* oldtio);
 int YvonneArduinoOpen (char* arduinoPort);
 
-void yrc_stateMachineArduino (int* yrc_stateField, int fdArduinoModem);
+void yrc_stateMachineArduino (volatile sig_atomic_t *yrc_stateField, int fdArduinoModem);
 
 int YvonneTerminalInit (struct termios * ttysave);
 int YvonneTerminalRestore (struct termios ttysave);
 
-char* YvonneGetSceneName();
+void yrc_stateMachineLocalFailback (volatile sig_atomic_t *yrc_stateField);
 
-int YvonneExecute (char* srtCommandName, char* strCommandLine);
-int YvonneExecuteForked (char* srtCommandName, char* strCommandLine);
+char* YvonneGetSceneName(void);
+
+int yrc_Execute (char* srtCommandName, char* strCommandLine);
+int yrc_ExecuteForked (char* strCommandName, char* strCommandLine, int *pipe);
 
 char* strstr_last (const char* str1, const char* str2);
 

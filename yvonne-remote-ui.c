@@ -23,9 +23,6 @@
 #include "yvonne-remote.h"
 #include "yvonne-remote-ui.h"
 
-int startx = 0;
-int starty = 0;
-
 char *yrc_menuEntry[] = { "Start - 's'",
                           "Pause - 'p'",
                           "Video - 'v'",
@@ -39,6 +36,13 @@ char yrc_menuEntryCode[] = { 's',
                             };
 
 int yrc_menuEntries = sizeof(yrc_menuEntry) / sizeof(char *);
+
+char *yrc_msgTypePrefix[] = { "E: ",
+                              "W: ",
+                              "I: ",
+                              "", //UI
+                              "", //Video banner
+                        };
 
 /**
  *  yrc_uiX
@@ -58,11 +62,17 @@ int yrc_menuEntries = sizeof(yrc_menuEntry) / sizeof(char *);
  *  Setup the ncurse user interface
  */
 
-int yrc_uiSetup () {
+int yrc_uiSetup (void)
+{
     initscr();
     clear();
     noecho();
     cbreak();   /* Line buffering disabled. pass on everything */
+
+    start_color(); /* Start color*/
+    init_pair(1, COLOR_BLUE, COLOR_BLACK);
+    //~ int row, col;
+    //~ getmaxyx(stdscr,row,col); /* FIXME get the number of rows and columns */
 
     return ERROR_NO;
 }
@@ -75,7 +85,8 @@ int yrc_uiSetup () {
  *
  *  Restore the initial terminal state
  */
-int yrc_uiRestore () {
+int yrc_uiRestore (void)
+{
     clrtoeol();
     refresh();
     endwin();
@@ -91,18 +102,20 @@ int yrc_uiRestore () {
  *
  *  Setup the menu window, caller is responsible of cleaning the memory (see yrc_menuClose)
  */
-int yrc_menuOpen (WINDOW **menu_win) {
+int yrc_menuOpen (WINDOW **menu_win)
+{
 
-    //~ int row, col;
-    //~ getmaxyx(stdscr,row,col); /* FIXME get the number of rows and columns */
-    startx = (COLS - YRC_MENU_WIDTH) / 2;
-    starty = (LINES - YRC_MENU_HEIGHT) / 2;
+    int startx = (COLS - YRC_MENU_WIDTH) / 2;
+    int starty = (LINES - YRC_MENU_HEIGHT) / 2;
 
     (*menu_win) = newwin(YRC_MENU_HEIGHT, YRC_MENU_WIDTH, starty, startx);
-    wtimeout ((*menu_win), 300);
-    keypad((*menu_win), TRUE);
+    if((*menu_win) !=NULL){
+        wtimeout ((*menu_win), 300);
+        keypad((*menu_win), TRUE);
+        return ERROR_NO;
+    }
 
-    return ERROR_NO;
+    return ERROR_GENERIC;
 }
 
 /**
@@ -113,7 +126,41 @@ int yrc_menuOpen (WINDOW **menu_win) {
  *
  *  Clean menu memory
  */
-int yrc_menuClose (WINDOW *menu_win) {
+int yrc_menuClose (WINDOW *menu_win)
+{
+    delwin(menu_win);
+    return ERROR_NO;
+}
+
+/**
+ *  yrc_errorOpen
+ *  @param A pointer to a ncurses WINDOW pointer
+ *
+ *  @return Error Code
+ *
+ *  Setup the error window, caller is responsible of cleaning the memory (see yrc_errorClose)
+ */
+int yrc_errorOpen (WINDOW **menu_win)
+{
+    (*menu_win) = newwin(YRC_UI_FOOTER_H, YRC_UI_INDEX_X-1, LINES-YRC_UI_FOOTER_H, 0);
+    if ((*menu_win) != NULL) {
+        scrollok(*menu_win, TRUE);
+        return ERROR_NO;
+    }
+
+    return ERROR_GENERIC;
+}
+
+/**
+ *  yrc_errorClose
+ *  @param A ncurses WINDOW pointer
+ *
+ *  @return Error Code
+ *
+ *  Clean menu memory
+ */
+int yrc_errorClose (WINDOW *menu_win)
+{
     delwin(menu_win);
     return ERROR_NO;
 }
@@ -152,10 +199,11 @@ void yrc_menuPrint (WINDOW *menu_win, int highlight)
  *
  *  @return Menu entry selection has letter or YRC_MENU_ENTRY_NO
  *
- *  Check (no block has set) for key pressed.
- *  Adjust menu selection and status accordingly.
+ *  Check (no block has set @see yrc_menuOpen) for key pressed.
+ *  Adjust menu selection and if new event occurs, return user choice.
  */
-int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight) {
+int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight)
+{
     int c;
     int choice = YRC_MENU_ENTRY_NO;
 
@@ -204,14 +252,23 @@ int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight) {
     return choice;
 }
 
-void yrc_stateMachineLocal ( int *yrc_stateField , WINDOW* menu_win) {
+/**
+ *  yrc_stateMachineLocal
+ *  @param pointer to int for bit field
+ *  @param a WINDOW pointer to the Ncurses menu @see yrc_menuOpen
+ *
+ *  Update the state from local stupid UI. @see yrc_menuCheckEntry
+ */
+
+void yrc_stateMachineLocal (volatile sig_atomic_t *yrc_stateField , WINDOW* menu_win)
+{
     static int highlight = 1;
 
     static int yy = -1;
     static char tictac = '*';
 
     if(yy == -1) yy = YRC_UI_INDEX_X ;
-    mvaddch(LINES-3,yy++,tictac);
+    mvaddch(LINES-YRC_UI_FOOTER_H-1,yy++,tictac);
     refresh();
     if (yy >= COLS-1 ){ yy = YRC_UI_INDEX_X; tictac = ~tictac; }
 
@@ -222,15 +279,12 @@ void yrc_stateMachineLocal ( int *yrc_stateField , WINDOW* menu_win) {
                 (*yrc_stateField) &= ~YRC_STATE_PHOTO;
             break;
             case 's':
-                //~ StateStop = 1;
                 (*yrc_stateField) |= YRC_STATE_PHOTO;
             break;
             case 'v':
-                //~ StateVideo = 1;
                 (*yrc_stateField) |= YRC_STATE_VIDEO;
             break;
             case 'q':
-                //~ StateQuit = 1;
                 (*yrc_stateField) |= YRC_STATE_QUIT;
             break;
         }
@@ -238,15 +292,16 @@ void yrc_stateMachineLocal ( int *yrc_stateField , WINDOW* menu_win) {
 }
 
 /**
- *  yrc_uiPrint
+ *  yrc_coloredPrintf
  *  @param msgType Type of message has YvonneMsgType
  *  @param char* message
  *  @param ...
  *
  *  Basic message printing
- *  @warning Do not use with ncurses support
+ *  @warning Do not use with ncurses support aka failback
  */
-void yrc_uiPrint (YvonneMsgType msgType, char* message, ...) {
+void yrc_coloredPrintf (YvonneMsgType msgType, char* message, ...)
+{
   char buf[1024];
   va_list args;
   // parse arguments
@@ -272,7 +327,7 @@ void yrc_uiPrint (YvonneMsgType msgType, char* message, ...) {
     default:
       errorColor = ANSI_COLOR_RESET;
   }
-  fprintf( stdout, "%s%s%s\n", errorColor, buf, ANSI_COLOR_RESET );
+  fprintf( stdout, "%s%s%s%s\n",yrc_msgTypePrefix[msgType], errorColor, buf, ANSI_COLOR_RESET );
   va_end(args);
 }
 
@@ -281,8 +336,8 @@ void yrc_uiPrint (YvonneMsgType msgType, char* message, ...) {
  *
  *  Display the help message in the upper left window corner
  */
-void yrc_uiPrintHelp(){
-
+void yrc_uiPrintHelp(void)
+{
     mvprintw(0, 0, "Use shortcuts or arrow keys up and down and Enter to select a choice.");
     refresh();
 }
@@ -292,21 +347,57 @@ void yrc_uiPrintHelp(){
  *
  *  Print the immobile stuf
  */
-void yrc_uiPrintLayout(){
-
-    mvprintw(LINES-2, YRC_UI_INDEX_X, "Current photo : ");
-    mvprintw(LINES-1, YRC_UI_INDEX_X, "Current video : ");
+void yrc_uiPrintLayout(void)
+{
+    mvprintw(LINES-YRC_UI_FOOTER_H,     YRC_UI_INDEX_X, "photo : ");
+    mvprintw(LINES-YRC_UI_FOOTER_H+1,   YRC_UI_INDEX_X, "video : ");
     refresh();
 }
 
 /**
  *  yrc_uiPrintMediaIndex
  *
- *  Print the immobile stuf
+ *  Refresh the current photo and video index
  */
-void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo){
-
-    mvprintw(LINES-2, YRC_UI_INDEX_X+16, "%d", currentPhoto); //strlen current photo
-    mvprintw(LINES-1, YRC_UI_INDEX_X+16, "%d", currentVideo);
+void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo)
+{
+    mvprintw(LINES-YRC_UI_FOOTER_H,     YRC_UI_INDEX_X+YRC_UI_INDEX_TEXT_L, "%d", currentPhoto); //strlen current photo
+    mvprintw(LINES-YRC_UI_FOOTER_H+1,   YRC_UI_INDEX_X+YRC_UI_INDEX_TEXT_L, "%d", currentVideo);
     refresh();
 }
+
+/**
+ *  yrc_uiPrintMessage
+ *  @param A pointer to a ncurses WINDOW pointer
+ *  @param msgType Type of message has YvonneMsgType
+ *  @param char* message
+ *  @param ...
+ *
+ *
+ *  Type based (error/warning/info...) messages printing.
+ */
+void yrc_uiPrintMessage(WINDOW* win, YvonneMsgType msgType, char* errorMessage, ...)
+{
+    va_list args;
+    int textAttrib;
+    // parse arguments
+    va_start(args, errorMessage);
+
+    switch(msgType) {
+        case YVONNE_MSG_ERROR:
+            textAttrib = A_STANDOUT;
+        break;
+        case YVONNE_MSG_VIDEO_BANNER:
+            textAttrib = COLOR_PAIR(1);
+        break;
+        default:
+            textAttrib = A_NORMAL;
+        break;
+    }
+    wattron(win,textAttrib);
+    vwprintw(win, errorMessage, args); //strlen current photo
+    wattroff(win,textAttrib);
+    wrefresh(win);
+    va_end(args);
+}
+

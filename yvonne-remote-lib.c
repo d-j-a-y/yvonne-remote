@@ -194,7 +194,7 @@ void YvonneArduinoClose (int fd, struct termios* oldtio)
  *
  *  Update the state from COM/Arduino message stupid protocol
  */
-void yrc_stateMachineArduino (int* yrc_stateField, int fdArduinoModem) {
+void yrc_stateMachineArduino (volatile sig_atomic_t *yrc_stateField, int fdArduinoModem) {
     char* stopIndex = 0;
     char* startIndex = 0;
 
@@ -236,7 +236,7 @@ void yrc_stateMachineArduino (int* yrc_stateField, int fdArduinoModem) {
  *  Return the scene name from the current directory. This function calls malloc(),
  *  caller is responsible for freeing the memory.
  */
-char* YvonneGetSceneName()
+char* YvonneGetSceneName(void)
 {
   char *currdir = NULL;
   char *sceneName = NULL;
@@ -254,74 +254,165 @@ char* YvonneGetSceneName()
 
 
 /**
- *  YvonneExecute
+ *  yrc_Execute
  *  @param strCommandName Name of the Command line to execute inside a shell
  *  @param strCommandLine Command line to execute inside a shell
  *  @return ERROR_NO if ok, ERROR if the pipe can't be open //FIXME false true
  *
- *  Execute the command line
+ *  Execute the command line in a blocking forked process analysing output thruw
+ *  pipes (wip)
  */
-int YvonneExecute (char* strCommandName, char* strCommandLine)
-{
-  FILE *pipe;
-  //get a pipe for the command line
-  pipe = popen(strCommandLine, "r");
-  if(pipe == NULL) {
-    perror("pipe :");
-    return ERROR_GENERIC;
-  }
+int yrc_Execute (char* strCommandName, char* strCommandLine) {
 
-  char outputLine[LINE_BUFFER];
-  int linenr=1;
-  //read the command line output  from the pipe line by line
-  while (fgets(outputLine, LINE_BUFFER, pipe) != NULL) {
-    printf("%s n°%d : %s",strCommandName, linenr, outputLine);
-    ++linenr;
-  }
+    pid_t pid;
+    int exit_code = ERROR_NO;
+    int file_pipes[2];
 
-  //close the pipe
-  pclose(pipe);
+    pid = fork();
 
-  return ERROR_NO;
+    switch(pid) {
+        case -1:
+            perror("fork failed");
+            //~ exit(1);
+            exit_code = ERROR_GENERIC;
+            break;
+        case 0:
+            if (pipe(file_pipes) == -1) {
+              perror("pipe:");
+              exit_code = ERROR_GENERIC;
+//~ //              exit(1); //FIXME
+              break;
+            }
+
+            while ((dup2(file_pipes[1], STDOUT_FILENO) == -1) && (errno == EINTR)) {} // loop if interrupted by signal.
+            while ((dup2(file_pipes[1], STDERR_FILENO) == -1) && (errno == EINTR)) {} // loop if interrupted by signal.
+            close(file_pipes[1]);
+            exit_code = WEXITSTATUS(system(strCommandLine));
+            exit(exit_code);
+        break;
+        default:
+            exit_code = ERROR_NO;
+        break;
+    }
+
+    if (pid != 0) {
+        int stat_val;
+        /*pid_t child_pid;
+        child_pid = */wait(&stat_val);
+            // TODO parse stdout err  from pipe to give more error warning info
+        if(!WIFEXITED(stat_val))
+            printf("Child terminated abnormally\n"); // FIXME return yrc error code
+        else {
+//            printf("Child exited with code %d\n", WEXITSTATUS(stat_val));
+            exit_code = (WEXITSTATUS(stat_val) == EXIT_SUCCESS) ? ERROR_NO : ERROR_EXEC_COMMAND_FAIL;
+        }
+    }
+
+    return exit_code;
 }
 
 /**
- *  YvonneExecuteForked
+ *  yrc_ExecuteForked
  *  @param strCommandName, name of the Command line to execute inside a shell
  *  @param strCommandLine, Command line to execute inside a shell
  *  @return ERROR_NO if ok, ERROR if the pipe can't be open //FIXME false true
  *
  *  Execute the command line in a child process and exit
  */
-int YvonneExecuteForked (char* strCommandName, char* strCommandLine)
+int yrc_ExecuteForked (char* strCommandName, char* strCommandLine, int *extern_files_pipe) {
+
+    pid_t pid;
+    int exit_code = ERROR_NO;
+    int file_pipes[2];
+
+    pid = fork();
+
+    switch(pid) {
+        case -1:
+            perror("fork failed");
+            //~ exit(1);
+            exit_code = ERROR_GENERIC;
+            break;
+        case 0:
+            if (pipe(file_pipes) == -1) {
+              perror("pipe:");
+              exit_code = ERROR_GENERIC;
+//~ //              exit(1); //FIXME
+              break;
+            }
+
+            while ((dup2(file_pipes[1], STDOUT_FILENO) == -1) && (errno == EINTR)) {} // loop if interrupted by signal.
+            while ((dup2(file_pipes[1], STDERR_FILENO) == -1) && (errno == EINTR)) {} // loop if interrupted by signal.
+            close(file_pipes[1]);
+            exit_code = WEXITSTATUS(system(strCommandLine));
+            exec_status = exit_code;
+            //printf("execore from fork code %d status %d",exit_code, exec_status);
+/* Let parent know you’re done. */
+            kill (getppid (), SIGUSR1);
+            exit(exit_code);
+        break;
+        default:
+            exit_code = ERROR_NO;
+        break;
+    }
+
+    return exit_code;
+}
+
+/**
+ *  yrc_stateMachineLocalFailback
+ *  @param pointer to int for bit field
+ *
+ *  Update the state from local failback keyboard control
+ */
+void yrc_stateMachineLocalFailback (volatile sig_atomic_t *yrc_stateField)
 {
-  FILE *pipe;
-  pid_t process_id;
+    //! 
+    struct timeval tv;
+    // set the time value to 1 second
+    tv.tv_sec = 1; // FIXME needed inside the loop ?
+    tv.tv_usec = 0;
 
-  process_id = fork();
-  //if forked with success return, if fail or child : follow
-  if(process_id && process_id != -1) return ERROR_NO;
+    fd_set readset;
+    FD_ZERO(&readset);
+    FD_SET(fileno(stdin), &readset);
 
-  //get a pipe for the command line
-  pipe = popen(strCommandLine, "r");
-  if(pipe == NULL) {
-    perror("pipe :");
-    return ERROR_GENERIC;
-  }
-
-  char outputLine[LINE_BUFFER];
-  int linenr=1;
-  //read the command line output  from the pipe line by line
-  while (fgets(outputLine, LINE_BUFFER, pipe) != NULL) {
-    printf("%s n°%d : %s",strCommandName, linenr, outputLine);
-    ++linenr;
-  }
-
-  //close the pipe
-  pclose(pipe);
-
-  if(process_id == 0)     exit(EXIT_SUCCESS);
-  return ERROR_NO;
+    select(fileno(stdin)+1, &readset, NULL, NULL, &tv);
+    // the user typed a character so exit
+    if(FD_ISSET(fileno(stdin), &readset)) {
+        int charcode = fgetc (stdin);
+        if (charcode == EOF) {
+            yrc_coloredPrintf(YVONNE_MSG_WARNING, "Something get wrong reading stdin...");
+        } else {
+        }
+        putchar(charcode); // manually echo the character
+        switch (charcode) {
+            case 's':
+            case 'S':
+                (*yrc_stateField) &= ~YRC_STATE_PHOTO;
+                //~ (yrc_stateField) &= ~YRC_STATE_PHOTO;
+                yrc_coloredPrintf (YVONNE_MSG_INFO, "\nStart shooting ...");
+            break;
+            case 'p':
+            case 'P':
+                (*yrc_stateField) |= YRC_STATE_PHOTO;
+                //~ yrc_stateField |= YRC_STATE_PHOTO;
+                yrc_coloredPrintf (YVONNE_MSG_INFO, "\nPause shooting ...");
+            break;
+            case 'v':
+            case 'V':
+                //~ yrc_stateField |= YRC_STATE_VIDEO;
+                (*yrc_stateField) |= YRC_STATE_VIDEO;
+                yrc_coloredPrintf (YVONNE_MSG_INFO, "\nThe video generation will start ...");
+            break;
+            case 'q':
+            case 'Q':
+                (*yrc_stateField) |= YRC_STATE_QUIT;
+                //~ yrc_stateField |= YRC_STATE_QUIT;
+                yrc_coloredPrintf (YVONNE_MSG_INFO, "\nWill quit as soon as ...");
+            break;
+        }
+    }
 }
 
 /**
@@ -404,10 +495,6 @@ int YvonnePhotoResize (char* filesource, char* filetarget, long width, long heig
   status=MagickReadImage(magick_wand,filesource);
   if (status == MagickFalse)
     ThrowWandException(magick_wand);
-//  { FIXME
-//  magick_wand=DestroyMagickWand(magick_wand);
-//  MagickWandTerminus();
-//  }
   /*
     Turn the images into a thumbnail sequence.
   */
@@ -449,7 +536,7 @@ int YvonnePhotoCaptureInit (YvonneCamera *cam) {
 //    gp_camera_set_port_info(priv->cam, port);
 
   //This call will autodetect cameras, take the first one from the list and use it
-  yrc_uiPrint(YVONNE_MSG_INFO,"Camera init. Can take more than 10 seconds depending on the "
+  yrc_coloredPrintf(YVONNE_MSG_INFO,"Camera init. Can take more than 10 seconds depending on the "
   "memory card's contents (remove card from camera to speed up).");
   int ret = gp_camera_init(cam->cam, cam->ctx);
   if (ret < GP_OK) {
@@ -578,7 +665,7 @@ int YvonnePhotoCapture (YvonneCamera* cam, const char *filename) {
  *  Gphoto2 error handler
  */
 void YvonnePhotoCaptureError (GPContext *context, const char *str, void *data){
-  yrc_uiPrint(YVONNE_MSG_ERROR, "\n*** Contexterror ***\n%s", str);
+  yrc_coloredPrintf(YVONNE_MSG_ERROR, "\n*** Contexterror ***\n%s", str);
   //keepRunning = false;
 }
 
