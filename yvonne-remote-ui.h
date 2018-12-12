@@ -45,25 +45,25 @@ typedef enum
   YVONNE_MSG_VIDEO_BANNER
 } YvonneMsgType;
 
-void yrc_menuPrint(WINDOW *menu_win, int highlight);
-int yrc_uiSetup(void);
-int yrc_uiRestore(void);
+int yrc_uiSetup (void);
+int yrc_uiRestore (void);
 
-int yrc_menuOpen(WINDOW **menu_win);
-int yrc_menuClose(WINDOW *menu_win);
-int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight);
+int yrc_menuOpen (void);
+int yrc_menuClose (void);
+void yrc_menuPrint (int highlight);
+int yrc_menuCheckEntry (WINDOW* win, int *highlight);
 
-int yrc_errorOpen(WINDOW **menu_win);
-int yrc_errorClose(WINDOW *menu_win);
+int yrc_errorOpen (void);
+int yrc_errorClose (void);
 
-void yrc_stateMachineLocal ( volatile sig_atomic_t *yrc_stateField , WINDOW* menu_win);
+void yrc_stateMachineLocal (volatile sig_atomic_t *yrc_stateField);
 
-void yrc_coloredPrintf(YvonneMsgType msgType, char* message, ...);
+void yrc_coloredPrintf (YvonneMsgType msgType, char* message, ...);
 
-void yrc_uiPrintHelp(void);
-void yrc_uiPrintLayout(void);
-void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo);
-void yrc_uiPrintMessage(WINDOW* win, YvonneMsgType msgType, char* errorMessage, ...);
+void yrc_uiPrintHelp (void);
+void yrc_uiPrintLayout (void);
+void yrc_uiPrintMediaIndex (int currentPhoto, int currentVideo);
+void yrc_uiPrintMessage (YvonneMsgType msgType, char* errorMessage, ...);
 
 #endif //__YVONNEREMOTEUI__
 

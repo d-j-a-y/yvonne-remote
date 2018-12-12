@@ -44,6 +44,9 @@ char *yrc_msgTypePrefix[] = { "E: ",
                               "", //Video banner
                         };
 
+static WINDOW *menu_win = NULL;
+static WINDOW *msg_win = NULL;
+
 /**
  *  yrc_uiX
  *  @param ...
@@ -55,7 +58,7 @@ char *yrc_msgTypePrefix[] = { "E: ",
 
 /**
  *  yrc_uiSetup
- *  @param 
+ *  @param
  *
  *  @return Error Code
  *
@@ -96,22 +99,21 @@ int yrc_uiRestore (void)
 
 /**
  *  yrc_menuOpen
- *  @param A pointer to a ncurses WINDOW pointer
  *
  *  @return Error Code
  *
  *  Setup the menu window, caller is responsible of cleaning the memory (see yrc_menuClose)
  */
-int yrc_menuOpen (WINDOW **menu_win)
+int yrc_menuOpen (void)
 {
 
     int startx = (COLS - YRC_MENU_WIDTH) / 2;
     int starty = (LINES - YRC_MENU_HEIGHT) / 2;
 
-    (*menu_win) = newwin(YRC_MENU_HEIGHT, YRC_MENU_WIDTH, starty, startx);
-    if((*menu_win) !=NULL){
-        wtimeout ((*menu_win), 300);
-        keypad((*menu_win), TRUE);
+    menu_win = newwin(YRC_MENU_HEIGHT, YRC_MENU_WIDTH, starty, startx);
+    if(menu_win !=NULL){
+        wtimeout (menu_win, 300);
+        keypad(menu_win, TRUE);
         return ERROR_NO;
     }
 
@@ -120,31 +122,29 @@ int yrc_menuOpen (WINDOW **menu_win)
 
 /**
  *  yrc_menuClose
- *  @param A ncurses WINDOW pointer
  *
  *  @return Error Code
  *
  *  Clean menu memory
  */
-int yrc_menuClose (WINDOW *menu_win)
+int yrc_menuClose (void)
 {
-    delwin(menu_win);
+    if (menu_win) delwin(menu_win);
     return ERROR_NO;
 }
 
 /**
  *  yrc_errorOpen
- *  @param A pointer to a ncurses WINDOW pointer
  *
  *  @return Error Code
  *
  *  Setup the error window, caller is responsible of cleaning the memory (see yrc_errorClose)
  */
-int yrc_errorOpen (WINDOW **menu_win)
+int yrc_errorOpen (void)
 {
-    (*menu_win) = newwin(YRC_UI_FOOTER_H, YRC_UI_INDEX_X-1, LINES-YRC_UI_FOOTER_H, 0);
-    if ((*menu_win) != NULL) {
-        scrollok(*menu_win, TRUE);
+    msg_win = newwin(YRC_UI_FOOTER_H, YRC_UI_INDEX_X-1, LINES-YRC_UI_FOOTER_H, 0);
+    if (msg_win != NULL) {
+        scrollok(msg_win, TRUE);
         return ERROR_NO;
     }
 
@@ -153,26 +153,24 @@ int yrc_errorOpen (WINDOW **menu_win)
 
 /**
  *  yrc_errorClose
- *  @param A ncurses WINDOW pointer
  *
  *  @return Error Code
  *
  *  Clean menu memory
  */
-int yrc_errorClose (WINDOW *menu_win)
+int yrc_errorClose (void)
 {
-    delwin(menu_win);
+    if(msg_win) delwin(msg_win);
     return ERROR_NO;
 }
 
 /**
  *  yrc_menuPrint
- *  @param A pointer to a ncurses WINDOW pointer
  *  @param A one based index for current highlighed menu entry
  *
  *  Build and display the menu with current highlighed menu entry
  */
-void yrc_menuPrint (WINDOW *menu_win, int highlight)
+void yrc_menuPrint (int highlight)
 {
     int x, y, i;
 
@@ -181,7 +179,7 @@ void yrc_menuPrint (WINDOW *menu_win, int highlight)
     box(menu_win, 0, 0);
     for(i = 0; i < yrc_menuEntries; ++i)
     {	if(highlight == i + 1) /* High light the present choice */
-        {	wattron(menu_win, A_REVERSE); 
+        {	wattron(menu_win, A_REVERSE);
             mvwprintw(menu_win, y, x, "%s", yrc_menuEntry[i]);
             wattroff(menu_win, A_REVERSE);
         }
@@ -218,7 +216,7 @@ int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight)
         case KEY_DOWN:
             if((*highlight) == yrc_menuEntries)
                 (*highlight) = 1;
-            else 
+            else
                 ++(*highlight);
             break;
         case 10: //RETURN
@@ -247,7 +245,7 @@ int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight)
             refresh();
             break;
     }
-    yrc_menuPrint(menu_win, (*highlight));
+    yrc_menuPrint(*highlight);
 
     return choice;
 }
@@ -255,12 +253,11 @@ int yrc_menuCheckEntry (WINDOW *menu_win, int *highlight)
 /**
  *  yrc_stateMachineLocal
  *  @param pointer to int for bit field
- *  @param a WINDOW pointer to the Ncurses menu @see yrc_menuOpen
  *
  *  Update the state from local stupid UI. @see yrc_menuCheckEntry
  */
 
-void yrc_stateMachineLocal (volatile sig_atomic_t *yrc_stateField , WINDOW* menu_win)
+void yrc_stateMachineLocal (volatile sig_atomic_t *yrc_stateField)
 {
     static int highlight = 1;
 
@@ -368,7 +365,6 @@ void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo)
 
 /**
  *  yrc_uiPrintMessage
- *  @param A pointer to a ncurses WINDOW pointer
  *  @param msgType Type of message has YvonneMsgType
  *  @param char* message
  *  @param ...
@@ -376,7 +372,7 @@ void yrc_uiPrintMediaIndex(int currentPhoto, int currentVideo)
  *
  *  Type based (error/warning/info...) messages printing.
  */
-void yrc_uiPrintMessage(WINDOW* win, YvonneMsgType msgType, char* errorMessage, ...)
+void yrc_uiPrintMessage(YvonneMsgType msgType, char* errorMessage, ...)
 {
     va_list args;
     int textAttrib;
@@ -394,10 +390,10 @@ void yrc_uiPrintMessage(WINDOW* win, YvonneMsgType msgType, char* errorMessage, 
             textAttrib = A_NORMAL;
         break;
     }
-    wattron(win,textAttrib);
-    vwprintw(win, errorMessage, args); //strlen current photo
-    wattroff(win,textAttrib);
-    wrefresh(win);
+    wattron(msg_win,textAttrib);
+    vwprintw(msg_win, errorMessage, args); //strlen current photo
+    wattroff(msg_win,textAttrib);
+    wrefresh(msg_win);
     va_end(args);
 }
 

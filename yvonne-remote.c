@@ -1,6 +1,6 @@
 /*****************************************************
 * yvonne-remote - 0.1.dev
-* 
+*
 *    yvonne-remote program is used to control automatic photo shooting
 *    and videos generation for a performativ installation name "Yvonne"
 *
@@ -20,20 +20,20 @@
 *    You should have received a copy of the GNU General Public License
 *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *
-* Some part inspirated from "Cratyle" 
+* Some part inspirated from "Cratyle"
 * Originally created december 2013
-* 2013-2014, Xavier Dubourdieu, Jérôme Blanchi (aka d.j.a.y), 
+* 2013-2014, Xavier Dubourdieu, Jérôme Blanchi (aka d.j.a.y),
 * http://github.com/d-j-a-y/Cratyle
 * Under "GNU/GPL v3" Licence
 *
-* Some part inspirated from "arduino-serial" 
+* Some part inspirated from "arduino-serial"
 * Originally created 5 December 2006
 * 2006-2013, Tod E. Kurt, http://todbot.com/blog/
 * Under "The MIT License (MIT)"
 *
 * Dependecies
 * -----------
-* - gphoto2 (best experience with 2.5.4 cause "camera can't 
+* - gphoto2 (best experience with 2.5.4 cause "camera can't
 * shoot due to focus lock" i had with 2.4.8)
 * - ffmpeg (need -start-number option) //TODO minimal version
 * - imagemagick
@@ -232,8 +232,6 @@ int main(int argc, char** argv)
     //! establish the connection with the adhoc local or remote control
     int fdArduinoModem = -1;
     struct termios oldtio;
-    WINDOW *menu_win = NULL;
-    WINDOW *msg_win = NULL;
 
     if (remoteControl) { // arduino remote control
     //! establish the connection with the arduino (mega2560) remote
@@ -250,17 +248,17 @@ int main(int argc, char** argv)
           goto CLOSE_CONTROL;
         }
     } else { // local terminal (ncurses)
-        if (yrc_uiSetup() != ERROR_NO) {
+        if (yrc_uiSetup () != ERROR_NO) {
           yrc_coloredPrintf(YVONNE_MSG_ERROR, "FATAL! Can't setup the user interface."); // TODO fallback to tty
           perror("");
           goto CLOSE_LOG;
         }
-        if (yrc_menuOpen (&menu_win) != ERROR_NO) {
+        if (yrc_menuOpen () != ERROR_NO) {
           yrc_coloredPrintf(YVONNE_MSG_ERROR, "FATAL! Can't create ui menu");// TODO fallback to tty
           perror("");
           goto CLOSE_CONTROL;
         }
-        if (yrc_errorOpen (&msg_win) != ERROR_NO) {
+        if (yrc_errorOpen () != ERROR_NO) {
           yrc_coloredPrintf(YVONNE_MSG_ERROR, "FATAL! Can't create ui error window");
           perror("");
           goto CLOSE_CONTROL;
@@ -308,11 +306,11 @@ int main(int argc, char** argv)
 
     if (!remoteControl) {
         //~ if ncurseok (not faillback))
-        yrc_uiPrintHelp();
-        yrc_menuPrint(menu_win, 1);
+        yrc_uiPrintHelp ();
+        yrc_menuPrint (1);
         yrc_uiPrintLayout ();
 
-        /* Establish the signal handler. */ //FIXME up to camera init ? (2) 
+        /* Establish the signal handler. */ //FIXME up to camera init ? (2)
         sigfillset (&block_mask);
         usr_action.sa_handler = forksyncHandler;
         usr_action.sa_mask = block_mask;
@@ -336,7 +334,7 @@ int main(int argc, char** argv)
         yrc_stateMachineArduino (&yrc_stateField, fdArduinoModem);
     } else if (TRUE) {
     //! Listen to the local ncurses control and adjust state
-        yrc_stateMachineLocal ( &yrc_stateField , menu_win );
+        yrc_stateMachineLocal ( &yrc_stateField );
     } else { // TODO TEST ME PLEASE !
         yrc_stateMachineLocalFailback (& yrc_stateField);
     }
@@ -346,7 +344,7 @@ int main(int argc, char** argv)
         switch (exec_status) {
             case ERROR_NO:
                 if (!remoteControl){
-                    yrc_uiPrintMessage(msg_win, YVONNE_MSG_VIDEO_BANNER,
+                    yrc_uiPrintMessage( YVONNE_MSG_VIDEO_BANNER,
                                         "A fresh ## --> %s-%d.avi <-- ## is available to be chewed.",
                                         sceneName, videoIndex);
                 } else {
@@ -359,14 +357,14 @@ int main(int argc, char** argv)
                 videoIndex++;
             break;
             case ERROR_EXEC_COMMAND_FAIL: //FIXME if remotecontrol
-                yrc_uiPrintMessage(msg_win, YVONNE_MSG_ERROR, "ERROR during video generation : ffmpeg failed.");
+                yrc_uiPrintMessage(YVONNE_MSG_ERROR, "ERROR during video generation : ffmpeg failed.");
                 renderMsg = renderMessages[RENDER_KO];
             case ERROR_EXEC_FAIL: //FIXME if remotecontrol
-                yrc_uiPrintMessage(msg_win, YVONNE_MSG_ERROR, "ERROR during video generation call.");
+                yrc_uiPrintMessage(YVONNE_MSG_ERROR, "ERROR during video generation call.");
                 renderMsg = renderMessages[RENDER_KO];
             break;
             default:
-                yrc_uiPrintMessage(msg_win, YVONNE_MSG_ERROR, "UnEXpected ERROR during video generation!");
+                yrc_uiPrintMessage(YVONNE_MSG_ERROR, "UnEXpected ERROR during video generation!");
                 renderMsg = renderMessages[RENDER_KO];
             break;
         }
@@ -390,7 +388,7 @@ int main(int argc, char** argv)
 // ffmpeg -hide_banner -f image2 -start_number 10 -r 25 -i "tmp/yvonne-%05d.jpg" -q:v 1 -c:v mjpeg -s 1024x576 -aspect 16:9 video/yvonne-001.avi
 //***********************
       //INFO 25 f/s because all images are duplicated N time
-      sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.%s\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi", 
+      sprintf(commandLine, "ffmpeg -hide_banner -f image2 -start_number %d -r 25 -i \"%s/%s-%%05d.%s\" -q:v 1 -c:v mjpeg -s %s -aspect 16:9 %s/%s-%.3d.avi",
                                                     startSequence,
                                                     LOWQUALITY_DIRECTORY,
                                                     sceneName,
@@ -423,7 +421,7 @@ int main(int argc, char** argv)
     if((yrc_stateField & YRC_STATE_QUIT) || !keepRunning) break;
 
     if(remoteControl) {
-        yrc_coloredPrintf(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto); //TODO MEGA NICE PRINT 
+        yrc_coloredPrintf(YVONNE_MSG_INFO, "Current photo : %s", currentPhoto); //TODO MEGA NICE PRINT
     }else {
         yrc_uiPrintMediaIndex(photoIndex, videoIndex);
     }
@@ -468,7 +466,7 @@ int main(int argc, char** argv)
                 if(remoteControl) //FIXME error ouptut last error
                     yrc_coloredPrintf(YVONNE_MSG_ERROR, "Executing stream capture : %s .", commandLine);
                 else
-                    yrc_uiPrintMessage(msg_win, YVONNE_MSG_ERROR, "Executing stream capture : '%s' .", commandLine);
+                    yrc_uiPrintMessage(YVONNE_MSG_ERROR, "Executing stream capture : '%s' .", commandLine);
                 captureOK = FALSE;
             }
         }
@@ -522,8 +520,8 @@ CLOSE_CONTROL:
         YvonneArduinoClose(fdArduinoModem, &oldtio);
     } else {
 //        YvonneTerminalRestore(ttysave);
-        if(menu_win) yrc_menuClose (menu_win);
-        if(msg_win) yrc_errorClose (msg_win);
+        yrc_menuClose ();
+        yrc_errorClose ();
         yrc_uiRestore ();
     }
 
